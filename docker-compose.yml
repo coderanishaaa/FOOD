@@ -209,7 +209,7 @@ services:
     build: ./services/notification-service
     container_name: notification-service
     ports:
-      - "8086:8086"
+      - "8086:8086"   # REST API + WebSocket
     environment:
       MYSQL_HOST: mysql
       MYSQL_PORT: 3306

@@ -10,6 +10,7 @@ import OrderTracking from './pages/OrderTracking';
 import RestaurantDashboard from './pages/RestaurantDashboard';
 import DeliveryDashboard from './pages/DeliveryDashboard';
 import AdminDashboard from './pages/AdminDashboard';
+import NotificationsPage from './pages/NotificationsPage';
 
 /**
  * Root component — defines all application routes with role-based guards.
@@ -63,6 +64,13 @@ export default function App() {
         <Route path="/delivery" element={
           <ProtectedRoute roles={['DELIVERY_AGENT']}>
             <DeliveryDashboard />
+          </ProtectedRoute>
+        } />
+
+        {/* Notifications route (all authenticated users) */}
+        <Route path="/notifications" element={
+          <ProtectedRoute roles={['CUSTOMER', 'RESTAURANT_OWNER', 'DELIVERY_AGENT', 'ADMIN']}>
+            <NotificationsPage />
           </ProtectedRoute>
         } />
 

@@ -78,6 +78,12 @@ spring:
           filters:
             - AuthenticationFilter
 
+        # WebSocket route — no auth filter (SockJS handshake)
+        - id: notification-ws
+          uri: lb://notification-service
+          predicates:
+            - Path=/ws/**
+
       # CORS configuration for frontend
       globalcors:
         cors-configurations:

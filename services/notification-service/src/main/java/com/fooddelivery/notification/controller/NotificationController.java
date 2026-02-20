@@ -50,4 +50,11 @@ public class NotificationController {
         NotificationDto notification = notificationService.markAsRead(id);
         return ResponseEntity.ok(ApiResponse.success("Notification marked as read", notification));
     }
+
+    /** Clear all notifications for a user */
+    @DeleteMapping("/user/{userId}/clear")
+    public ResponseEntity<ApiResponse<Void>> clearNotifications(@PathVariable Long userId) {
+        notificationService.clearNotifications(userId);
+        return ResponseEntity.ok(ApiResponse.success("All notifications cleared", null));
+    }
 }
