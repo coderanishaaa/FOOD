@@ -1,15 +1,24 @@
 {
   "name": "food-delivery-system",
   "private": true,
+  "type": "module",
   "scripts": {
-    "postinstall": "cd frontend && npm install",
-    "dev": "npm run dev --prefix frontend",
-    "build": "npm run build --prefix frontend",
-    "preview": "npm run preview --prefix frontend"
+    "dev": "vite --config frontend/vite.config.js",
+    "build": "vite build --config frontend/vite.config.js",
+    "preview": "vite preview --config frontend/vite.config.js"
   },
   "dependencies": {
-    "react": "^19.2.4",
+    "axios": "^1.7.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.23.1",
     "sockjs-client": "^1.6.1",
     "stompjs": "^2.3.3"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.0",
+    "vite": "^5.3.1"
   }
 }
