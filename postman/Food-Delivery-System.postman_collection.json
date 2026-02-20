@@ -1,0 +1,421 @@
+{
+  "info": {
+    "name": "Food Delivery System",
+    "description": "Complete API collection for the Food Delivery Microservices System. All requests go through the API Gateway at localhost:8080.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "gateway_url", "value": "http://localhost:8080" },
+    { "key": "token", "value": "" },
+    { "key": "user_id", "value": "" },
+    { "key": "restaurant_id", "value": "" },
+    { "key": "menu_item_id", "value": "" },
+    { "key": "order_id", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register Customer",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{gateway_url}}/api/auth/register" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Customer\",\n  \"email\": \"customer@test.com\",\n  \"password\": \"password123\",\n  \"phone\": \"1234567890\",\n  \"role\": \"CUSTOMER\",\n  \"address\": \"123 Main Street\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Register Restaurant Owner",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{gateway_url}}/api/auth/register" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Jane Owner\",\n  \"email\": \"owner@test.com\",\n  \"password\": \"password123\",\n  \"phone\": \"0987654321\",\n  \"role\": \"RESTAURANT_OWNER\",\n  \"address\": \"456 Business Ave\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Register Delivery Agent",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{gateway_url}}/api/auth/register" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Bob Agent\",\n  \"email\": \"agent@test.com\",\n  \"password\": \"password123\",\n  \"phone\": \"5555555555\",\n  \"role\": \"DELIVERY_AGENT\",\n  \"address\": \"789 Delivery Lane\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Register Admin",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{gateway_url}}/api/auth/register" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Admin User\",\n  \"email\": \"admin@test.com\",\n  \"password\": \"password123\",\n  \"phone\": \"1112223333\",\n  \"role\": \"ADMIN\",\n  \"address\": \"Admin HQ\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Login Customer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.data && json.data.token) {",
+                  "  pm.collectionVariables.set('token', json.data.token);",
+                  "  pm.collectionVariables.set('user_id', json.data.userId);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{gateway_url}}/api/auth/login" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"customer@test.com\",\n  \"password\": \"password123\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Login Restaurant Owner",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.data && json.data.token) {",
+                  "  pm.collectionVariables.set('token', json.data.token);",
+                  "  pm.collectionVariables.set('user_id', json.data.userId);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{gateway_url}}/api/auth/login" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"owner@test.com\",\n  \"password\": \"password123\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Restaurant",
+      "item": [
+        {
+          "name": "Create Restaurant",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.data && json.data.id) {",
+                  "  pm.collectionVariables.set('restaurant_id', json.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{gateway_url}}/api/restaurants" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Pizza Palace\",\n  \"address\": \"100 Food Court\",\n  \"phone\": \"5551234567\",\n  \"cuisine\": \"Italian\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get All Restaurants",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{gateway_url}}/api/restaurants" }
+          }
+        },
+        {
+          "name": "Get Restaurant By ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{gateway_url}}/api/restaurants/{{restaurant_id}}" }
+          }
+        },
+        {
+          "name": "Get My Restaurants (Owner)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{gateway_url}}/api/restaurants/owner" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Menu Items",
+      "item": [
+        {
+          "name": "Add Menu Item",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.data && json.data.id) {",
+                  "  pm.collectionVariables.set('menu_item_id', json.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{gateway_url}}/api/menu-items" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Margherita Pizza\",\n  \"description\": \"Classic tomato and mozzarella\",\n  \"price\": 12.99,\n  \"category\": \"Pizza\",\n  \"restaurantId\": {{restaurant_id}}\n}"
+            }
+          }
+        },
+        {
+          "name": "Add Menu Item 2",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{gateway_url}}/api/menu-items" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Pepperoni Pizza\",\n  \"description\": \"Loaded with pepperoni\",\n  \"price\": 14.99,\n  \"category\": \"Pizza\",\n  \"restaurantId\": {{restaurant_id}}\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Menu Items for Restaurant",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{gateway_url}}/api/menu-items/restaurant/{{restaurant_id}}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Orders",
+      "item": [
+        {
+          "name": "Place Order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.data && json.data.id) {",
+                  "  pm.collectionVariables.set('order_id', json.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{gateway_url}}/api/orders" },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"restaurantId\": {{restaurant_id}},\n  \"items\": [\n    {\n      \"menuItemId\": {{menu_item_id}},\n      \"menuItemName\": \"Margherita Pizza\",\n      \"quantity\": 2,\n      \"price\": 12.99\n    }\n  ],\n  \"deliveryAddress\": \"123 Main Street, Apt 4B\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Order By ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{gateway_url}}/api/orders/{{order_id}}" }
+          }
+        },
+        {
+          "name": "Get My Orders (Customer)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{gateway_url}}/api/orders/my-orders" }
+          }
+        },
+        {
+          "name": "Get Restaurant Orders",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{gateway_url}}/api/orders/restaurant/{{restaurant_id}}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payments",
+      "item": [
+        {
+          "name": "Get Payment By Order ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{gateway_url}}/api/payments/order/{{order_id}}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Deliveries",
+      "item": [
+        {
+          "name": "Get Delivery By Order ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{gateway_url}}/api/deliveries/order/{{order_id}}" }
+          }
+        },
+        {
+          "name": "Get My Deliveries (Agent)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{gateway_url}}/api/deliveries/my-deliveries" }
+          }
+        },
+        {
+          "name": "Update Delivery Status (PICKED_UP)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{gateway_url}}/api/deliveries/1/status?status=PICKED_UP" }
+          }
+        },
+        {
+          "name": "Update Delivery Status (DELIVERED)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{gateway_url}}/api/deliveries/1/status?status=DELIVERED" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "Get All Notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{gateway_url}}/api/notifications" }
+          }
+        },
+        {
+          "name": "Get Notifications By Order",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{gateway_url}}/api/notifications/order/{{order_id}}" }
+          }
+        },
+        {
+          "name": "Get Notifications By User",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{gateway_url}}/api/notifications/user/{{user_id}}" }
+          }
+        },
+        {
+          "name": "Get Unread Notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{gateway_url}}/api/notifications/user/{{user_id}}/unread" }
+          }
+        },
+        {
+          "name": "Mark Notification As Read",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{gateway_url}}/api/notifications/1/read" }
+          }
+        }
+      ]
+    }
+  ]
+}

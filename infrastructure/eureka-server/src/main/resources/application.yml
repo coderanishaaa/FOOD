@@ -1,0 +1,18 @@
+server:
+  port: ${EUREKA_PORT:8761}
+
+spring:
+  application:
+    name: eureka-server
+
+# Eureka server configuration — standalone mode
+eureka:
+  instance:
+    hostname: ${EUREKA_HOSTNAME:localhost}
+  client:
+    register-with-eureka: false    # Don't register itself
+    fetch-registry: false          # Don't fetch registry
+    service-url:
+      defaultZone: http://${eureka.instance.hostname}:${server.port}/eureka/
+  server:
+    enable-self-preservation: false  # Disable in dev; enable in prod
