@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
-import SockJS from 'sockjs-client';
-import { Stomp } from 'stompjs';
+import SockJS from 'sockjs-client/dist/sockjs';
+import Stomp from 'stompjs';
 import { useAuth } from './AuthContext';
 import notificationService from '../services/notificationService';
 
@@ -68,9 +68,10 @@ export function NotificationProvider({ children }) {
     const wsUrl = `${wsBaseUrl}/ws`;
 
     const socket = new SockJS(wsUrl);
-    const client = Stomp.over(socket);
+    const StompLib = Stomp.Stomp || Stomp;
+    const client = StompLib.over(socket);
     // Disable debug logging in production
-    client.debug = null;
+    client.debug = () => {};
 
     client.connect({}, () => {
       const destination = `/topic/notifications/${user.id}`;

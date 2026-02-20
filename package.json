@@ -1,0 +1,15 @@
+{
+  "name": "food-delivery-system",
+  "private": true,
+  "scripts": {
+    "postinstall": "cd frontend && npm install",
+    "dev": "npm run dev --prefix frontend",
+    "build": "npm run build --prefix frontend",
+    "preview": "npm run preview --prefix frontend"
+  },
+  "dependencies": {
+    "react": "^19.2.4",
+    "sockjs-client": "^1.6.1",
+    "stompjs": "^2.3.3"
+  }
+}
