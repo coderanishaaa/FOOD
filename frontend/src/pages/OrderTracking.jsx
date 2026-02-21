@@ -45,7 +45,7 @@ export default function OrderTracking() {
     try {
       const res = await API.post(`/api/payments/create-session/${orderId}`);
       const checkoutUrl = res.data.data?.url;
-      
+
       if (checkoutUrl) {
         // Redirect to Stripe Checkout
         window.location.href = checkoutUrl;
@@ -59,10 +59,84 @@ export default function OrderTracking() {
     }
   };
 
+  const handleRazorpayPayment = async () => {
+    if (!order) return;
+    setLoading(true);
+    setError('');
+
+    // Load Razorpay Script
+    const loadScript = () => {
+      return new Promise((resolve) => {
+        const script = document.createElement('script');
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        script.onload = () => resolve(true);
+        script.onerror = () => resolve(false);
+        document.body.appendChild(script);
+      });
+    };
+
+    const resScript = await loadScript();
+    if (!resScript) {
+      setError('Razorpay SDK failed to load.');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const res = await API.post(`/api/payments/create-razorpay-session/${orderId}`);
+      const rzpOrder = res.data.data;
+
+      if (!rzpOrder || !rzpOrder.orderId) {
+        setError('Failed to create Razorpay Order');
+        setLoading(false);
+        return;
+      }
+
+      const options = {
+        key: rzpOrder.keyId || 'rzp_test_mock_key_123',
+        amount: Math.round(rzpOrder.amount * 100),
+        currency: rzpOrder.currency || 'INR',
+        name: 'Food Delivery System',
+        description: `Order #${orderId}`,
+        order_id: rzpOrder.orderId,
+        handler: async function (response) {
+          try {
+            await API.post(`/api/payments/razorpay-complete/${orderId}`, {
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_signature: response.razorpay_signature
+            });
+            fetchTrackingData();
+          } catch (err) {
+            setError('Payment verification failed');
+          }
+        },
+        prefill: {
+          name: rzpOrder.customerName || 'Customer',
+          email: rzpOrder.customerEmail || 'customer@example.com',
+          contact: '9999999999'
+        },
+        theme: {
+          color: '#3399cc'
+        }
+      };
+
+      const rzp1 = new window.Razorpay(options);
+      rzp1.on('payment.failed', function (response) {
+        setError(`Payment failed: ${response.error.description}`);
+      });
+      rzp1.open();
+      setLoading(false);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to initiate Razorpay payment');
+      setLoading(false);
+    }
+  };
+
   // Map order status to timeline steps
   const getStepStatus = () => {
     if (!order) return { currentStep: 0, steps: [] };
-    
+
     const stepMap = {
       PENDING_PAYMENT: 1,
       PLACED: 1,  // Treat PLACED same as PENDING_PAYMENT for backward compatibility
@@ -72,9 +146,9 @@ export default function OrderTracking() {
       DELIVERED: 5,
       CANCELLED: 0
     };
-    
+
     const currentStep = stepMap[order.status] || 0;
-    
+
     const steps = [
       { label: 'Order Placed', done: currentStep >= 1, active: currentStep === 1 },
       { label: 'Payment Done', done: currentStep >= 2, active: currentStep === 2 },
@@ -82,7 +156,7 @@ export default function OrderTracking() {
       { label: 'Out for Delivery', done: currentStep >= 4, active: currentStep === 4 },
       { label: 'Delivered', done: currentStep >= 5, active: currentStep === 5 },
     ];
-    
+
     return { currentStep, steps };
   };
 
@@ -116,7 +190,7 @@ export default function OrderTracking() {
               <div key={i} style={{ textAlign: 'center', flex: 1, position: 'relative', zIndex: 1 }}>
                 <div style={{
                   width: 40, height: 40, borderRadius: '50%', margin: '0 auto 8px',
-                  background: step.done ? '#27ae60' : step.active ? '#3498db' : '#ddd', 
+                  background: step.done ? '#27ae60' : step.active ? '#3498db' : '#ddd',
                   color: 'white',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontWeight: 'bold', fontSize: '0.9rem',
@@ -126,8 +200,8 @@ export default function OrderTracking() {
                 }}>
                   {step.done ? '✓' : i + 1}
                 </div>
-                <span style={{ 
-                  fontSize: '0.85rem', 
+                <span style={{
+                  fontSize: '0.85rem',
                   color: step.done ? '#27ae60' : step.active ? '#3498db' : '#888',
                   fontWeight: step.active ? 'bold' : 'normal'
                 }}>
@@ -144,9 +218,9 @@ export default function OrderTracking() {
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <h3>Order Details</h3>
-            <span className={`badge ${order.status === 'PENDING_PAYMENT' || order.status === 'PLACED' ? 'badge-pending' : 
-              order.status === 'PAID' ? 'badge-confirmed' : 
-              order.status === 'DELIVERED' ? 'badge-delivered' : 'badge-assigned'}`}>
+            <span className={`badge ${order.status === 'PENDING_PAYMENT' || order.status === 'PLACED' ? 'badge-pending' :
+              order.status === 'PAID' ? 'badge-confirmed' :
+                order.status === 'DELIVERED' ? 'badge-delivered' : 'badge-assigned'}`}>
               {order.status}
             </span>
           </div>
@@ -158,7 +232,7 @@ export default function OrderTracking() {
               <span>${(item.price * item.quantity).toFixed(2)}</span>
             </div>
           ))}
-          
+
           {/* Payment Button - Show for both PENDING_PAYMENT and PLACED (backward compatibility) */}
           {(order.status === 'PENDING_PAYMENT' || order.status === 'PLACED') && (
             <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #eee' }}>
@@ -166,9 +240,17 @@ export default function OrderTracking() {
                 className="btn btn-success"
                 onClick={handlePayment}
                 disabled={loading}
+                style={{ width: '100%', marginBottom: 8 }}
+              >
+                {loading ? 'Processing...' : '💳 Pay with Stripe'}
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={handleRazorpayPayment}
+                disabled={loading}
                 style={{ width: '100%' }}
               >
-                {loading ? 'Processing...' : '💳 Proceed to Payment'}
+                {loading ? 'Processing...' : '⚡ Pay with Razorpay (Test Mode)'}
               </button>
               {error && <div className="alert alert-error" style={{ marginTop: 8 }}>{error}</div>}
             </div>
@@ -180,9 +262,9 @@ export default function OrderTracking() {
       {payment && (
         <div className="card">
           <h3>Payment</h3>
-          <p>Status: <strong style={{ 
-            color: payment.status === 'COMPLETED' ? '#27ae60' : 
-                   payment.status === 'PENDING' ? '#f39c12' : '#e74c3c'
+          <p>Status: <strong style={{
+            color: payment.status === 'COMPLETED' ? '#27ae60' :
+              payment.status === 'PENDING' ? '#f39c12' : '#e74c3c'
           }}>{payment.status}</strong></p>
           <p>Amount: <strong>${Number(payment.amount).toFixed(2)}</strong></p>
           {payment.transactionId && (
@@ -192,7 +274,7 @@ export default function OrderTracking() {
           )}
         </div>
       )}
-      
+
       {/* Payment Section for PENDING_PAYMENT/PLACED orders without payment record yet */}
       {order && (order.status === 'PENDING_PAYMENT' || order.status === 'PLACED') && !payment && (
         <div className="card" style={{ background: '#fff9e6', border: '1px solid #f39c12' }}>
@@ -202,9 +284,17 @@ export default function OrderTracking() {
             className="btn btn-success"
             onClick={handlePayment}
             disabled={loading}
+            style={{ marginTop: 8, marginRight: 8 }}
+          >
+            {loading ? 'Processing...' : 'Pay with Stripe'}
+          </button>
+          <button
+            className="btn btn-primary"
+            onClick={handleRazorpayPayment}
+            disabled={loading}
             style={{ marginTop: 8 }}
           >
-            {loading ? 'Processing...' : 'Proceed to Payment'}
+            {loading ? 'Processing...' : 'Pay with Razorpay (Test Mode)'}
           </button>
           {error && <div className="alert alert-error" style={{ marginTop: 8 }}>{error}</div>}
         </div>

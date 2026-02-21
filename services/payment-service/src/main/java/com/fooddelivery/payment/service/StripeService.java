@@ -234,3 +234,4 @@ public class StripeService {
                 .clientSecret(session.getClientSecret())  // Return client secret instead of URL
                 .build();
     }
+}

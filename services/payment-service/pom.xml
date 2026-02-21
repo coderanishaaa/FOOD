@@ -47,6 +47,12 @@
             <artifactId>stripe-java</artifactId>
             <version>24.16.0</version>
         </dependency>
+        <!-- Razorpay Java SDK -->
+        <dependency>
+            <groupId>com.razorpay</groupId>
+            <artifactId>razorpay-java</artifactId>
+            <version>1.4.7</version>
+        </dependency>
         <!-- OpenFeign for service-to-service communication -->
         <dependency>
             <groupId>org.springframework.cloud</groupId>

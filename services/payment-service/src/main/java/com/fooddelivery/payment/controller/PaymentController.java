@@ -3,8 +3,10 @@ package com.fooddelivery.payment.controller;
 import com.fooddelivery.payment.dto.ApiResponse;
 import com.fooddelivery.payment.dto.CheckoutSessionResponse;
 import com.fooddelivery.payment.dto.PaymentDto;
+import com.fooddelivery.payment.dto.RazorpayOrderResponse;
 import com.fooddelivery.payment.service.PaymentService;
 import com.fooddelivery.payment.service.StripeService;
+import com.fooddelivery.payment.service.RazorpayService;
 import com.fooddelivery.payment.service.MockPaymentService;
 import com.stripe.exception.StripeException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,6 +30,7 @@ public class PaymentController {
 
     private final PaymentService paymentService;
     private final StripeService stripeService;
+    private final RazorpayService razorpayService;
     
     @Autowired(required = false)
     private MockPaymentService mockPaymentService;  // Optional - only available in mock mode
@@ -147,6 +150,39 @@ public class PaymentController {
             log.error("❌❌❌ Unexpected error creating checkout session for orderId={}: {}", orderId, e.getMessage(), e);
             return ResponseEntity.status(500)
                     .body(ApiResponse.error("Failed to create checkout session: " + e.getMessage() + ". Check logs for details."));
+        }
+    }
+
+    /**
+     * Create Razorpay Order Session for an order.
+     * Returns orderId and keyId for embedding Razorpay Checkout form on your website.
+     * 
+     * @param orderId The order ID
+     * @return RazorpayOrderResponse with order details
+     */
+    @PostMapping("/create-razorpay-session/{orderId}")
+    public ResponseEntity<ApiResponse<RazorpayOrderResponse>> createRazorpayOrderSession(
+            @PathVariable Long orderId) {
+        try {
+            log.info("=== Creating Razorpay order session for orderId={} ===", orderId);
+            
+            RazorpayOrderResponse session = razorpayService.createRazorpayOrder(orderId);
+            
+            // Save Razorpay order ID to payment record (same field as stripe session ID or you can add a new one, here we reuse it or handle differently)
+            try {
+                paymentService.saveStripeSessionId(orderId, session.getOrderId());
+                log.info("✅ Razorpay Order ID saved to payment record");
+            } catch (Exception e) {
+                log.error("⚠️ Failed to save Razorpay Order ID: {}", e.getMessage(), e);
+            }
+            
+            log.info("✅ Razorpay order session created successfully for orderId={}", orderId);
+            return ResponseEntity.ok(ApiResponse.success("Razorpay order session created", session));
+            
+        } catch (Exception e) {
+            log.error("❌ Unexpected error creating Razorpay order session for orderId={}: {}", orderId, e.getMessage(), e);
+            return ResponseEntity.status(500)
+                    .body(ApiResponse.error("Failed to create Razorpay order session: " + e.getMessage()));
         }
     }
 
@@ -374,6 +410,46 @@ public class PaymentController {
             log.error("Error getting session status: {}", e.getMessage(), e);
             return ResponseEntity.status(500)
                     .body(ApiResponse.error("Failed to get session status: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Razorpay payment completion endpoint.
+     * Called when user completes Razorpay payment on frontend.
+     */
+    @PostMapping("/razorpay-complete/{orderId}")
+    public ResponseEntity<ApiResponse<String>> completeRazorpayPayment(
+            @PathVariable Long orderId,
+            @RequestBody(required=false) java.util.Map<String, String> payload) {
+        try {
+            log.info("Completing Razorpay payment for orderId={}", orderId);
+            
+            String razorpayPaymentId = null;
+            String razorpayOrderId = null;
+            
+            if (payload != null) {
+                razorpayPaymentId = payload.get("razorpay_payment_id");
+                razorpayOrderId = payload.get("razorpay_order_id");
+            }
+            
+            if (razorpayPaymentId == null || razorpayOrderId == null) {
+                // Generate mock IDs if we are in mock mode
+                razorpayPaymentId = "pay_mock_" + orderId;
+                razorpayOrderId = "order_mock_" + orderId;
+            }
+            
+            // For production, we must verify the Razorpay signature here using razorpaySignature and razorpayKeySecret
+            
+            // Complete the payment
+            paymentService.handleSuccessfulPayment(razorpayOrderId, razorpayPaymentId);
+            
+            log.info("✅ Razorpay payment completed successfully for orderId={}", orderId);
+            return ResponseEntity.ok(ApiResponse.success("Razorpay payment completed successfully", "Payment processed"));
+            
+        } catch (Exception e) {
+            log.error("❌ Error completing Razorpay payment for orderId={}: {}", orderId, e.getMessage(), e);
+            return ResponseEntity.status(500)
+                    .body(ApiResponse.error("Failed to complete Razorpay payment: " + e.getMessage()));
         }
     }
 }

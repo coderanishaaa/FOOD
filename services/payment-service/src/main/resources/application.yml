@@ -39,6 +39,12 @@ stripe:
   success-url: ${STRIPE_SUCCESS_URL:http://localhost:3000/payment/success}
   cancel-url: ${STRIPE_CANCEL_URL:http://localhost:3000/customer/orders}
 
+# Razorpay Configuration
+razorpay:
+  test-mode: ${RAZORPAY_TEST_MODE:true}
+  key:
+    id: ${RAZORPAY_KEY_ID:}
+    secret: ${RAZORPAY_KEY_SECRET:}
 # Feign Client Configuration
 feign:
   client:

@@ -54,13 +54,23 @@ spring:
           filters:
             - AuthenticationFilter
 
-        # Payment routes
+        # Payment routes - webhook endpoint is public (no auth required)
+        - id: payment-service-webhook
+          uri: lb://payment-service
+          predicates:
+            - Path=/api/payments/webhook
+          # No authentication filter - Stripe webhooks come from Stripe servers
+        
+        # Payment routes - other endpoints require authentication
         - id: payment-service
           uri: lb://payment-service
           predicates:
             - Path=/api/payments/**
           filters:
             - AuthenticationFilter
+          # Ensure payment-service is discoverable
+          metadata:
+            response-timeout: 10000
 
         # Delivery routes
         - id: delivery-service
