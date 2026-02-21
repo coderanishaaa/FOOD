@@ -69,9 +69,13 @@ export default function CustomerDashboard() {
         items: cart,
         deliveryAddress: address,
       });
-      setMessage('Order placed successfully!');
+      setMessage('Order placed successfully! Redirecting to orders...');
       setCart([]);
       setAddress('');
+      // Navigate to orders page after 1 second
+      setTimeout(() => {
+        navigate('/customer/orders');
+      }, 1000);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to place order');
     }

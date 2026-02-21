@@ -45,7 +45,7 @@ public class OrderService {
                 .restaurantId(request.getRestaurantId())
                 .totalAmount(totalAmount)
                 .deliveryAddress(request.getDeliveryAddress())
-                .status(OrderStatus.PLACED)
+                .status(OrderStatus.PENDING_PAYMENT)  // Order starts with PENDING_PAYMENT status
                 .build();
 
         // Build order items
@@ -69,7 +69,7 @@ public class OrderService {
                 .customerId(customerId)
                 .restaurantId(request.getRestaurantId())
                 .totalAmount(totalAmount)
-                .status(OrderStatus.PLACED.name())
+                .status(OrderStatus.PENDING_PAYMENT.name())  // Order is in PENDING_PAYMENT status
                 .deliveryAddress(request.getDeliveryAddress())
                 .timestamp(LocalDateTime.now())
                 .build();

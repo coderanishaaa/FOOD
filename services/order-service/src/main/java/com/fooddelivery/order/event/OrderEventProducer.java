@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class OrderEventProducer {
 
-    private static final String TOPIC = "order-events";
+    private static final String TOPIC = "order-created-topic";
 
     private final KafkaTemplate<String, OrderEvent> kafkaTemplate;
 

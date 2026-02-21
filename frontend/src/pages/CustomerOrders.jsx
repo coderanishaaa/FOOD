@@ -1,10 +1,14 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import API from '../api/axios';
+import StripeCheckout from '../components/StripeCheckout';
 
 export default function CustomerOrders() {
+  const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState({});
+  const [selectedOrderForPayment, setSelectedOrderForPayment] = useState(null);
 
   useEffect(() => {
     fetchOrders();
@@ -19,14 +23,60 @@ export default function CustomerOrders() {
     }
   };
 
+  const handlePayment = (orderId) => {
+    setSelectedOrderForPayment(orderId);
+    setError('');
+  };
+
+  const handlePaymentComplete = () => {
+    setSelectedOrderForPayment(null);
+    // Refresh orders to see updated status
+    fetchOrders();
+    // Optionally navigate to success page
+    navigate('/payment/success', { replace: true });
+  };
+
+  const handlePaymentCancel = () => {
+    setSelectedOrderForPayment(null);
+  };
+
   const badgeClass = (status) => {
     const map = {
-      PLACED: 'badge-pending', CONFIRMED: 'badge-confirmed',
-      PREPARING: 'badge-assigned', COMPLETED: 'badge-completed',
-      CANCELLED: 'badge-failed', DELIVERED: 'badge-delivered',
+      PENDING_PAYMENT: 'badge-pending',
+      PLACED: 'badge-pending',
+      CONFIRMED: 'badge-confirmed',
+      PAID: 'badge-confirmed',
+      ASSIGNED: 'badge-assigned',
+      PREPARING: 'badge-assigned',
+      OUT_FOR_DELIVERY: 'badge-assigned',
+      COMPLETED: 'badge-completed',
+      CANCELLED: 'badge-failed',
+      DELIVERED: 'badge-delivered',
     };
     return `badge ${map[status] || 'badge-pending'}`;
   };
+
+  // If showing checkout for a specific order, render the payment component
+  if (selectedOrderForPayment) {
+    return (
+      <div className="container">
+        <div className="dashboard-header">
+          <h2>Payment for Order #{selectedOrderForPayment}</h2>
+          <button 
+            className="btn btn-secondary btn-sm" 
+            onClick={handlePaymentCancel}
+          >
+            &larr; Back to Orders
+          </button>
+        </div>
+        <StripeCheckout 
+          orderId={selectedOrderForPayment}
+          onPaymentComplete={handlePaymentComplete}
+          onCancel={handlePaymentCancel}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="container">
@@ -62,9 +112,20 @@ export default function CustomerOrders() {
                 ))}
               </div>
             )}
-            <Link to={`/track/${order.id}`} className="btn btn-primary btn-sm" style={{ marginTop: 8 }}>
-              Track Order
-            </Link>
+            <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+              {(order.status === 'PENDING_PAYMENT' || order.status === 'PLACED') && (
+                <button
+                  className="btn btn-success btn-sm"
+                  onClick={() => handlePayment(order.id)}
+                  disabled={loading[order.id]}
+                >
+                  {loading[order.id] ? 'Processing...' : '💳 Pay Now'}
+                </button>
+              )}
+              <Link to={`/track/${order.id}`} className="btn btn-primary btn-sm">
+                Track Order
+              </Link>
+            </div>
           </div>
         ))
       )}

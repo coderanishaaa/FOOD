@@ -32,7 +32,7 @@ public class Order {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default
-    private OrderStatus status = OrderStatus.PLACED;
+    private OrderStatus status = OrderStatus.PENDING_PAYMENT;
 
     @Column(nullable = false)
     private BigDecimal totalAmount;

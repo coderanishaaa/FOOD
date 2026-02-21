@@ -29,13 +29,94 @@ spring:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
 
+# Stripe Configuration
+stripe:
+  # Set mock-mode=true to test without Stripe API key (DEFAULT: true for easy testing)
+  mock-mode: ${STRIPE_MOCK_MODE:true}
+  secret-key: ${STRIPE_SECRET_KEY:sk_test_51YourStripeSecretKeyHere}
+  public-key: ${STRIPE_PUBLIC_KEY:pk_test_51YourStripePublicKeyHere}
+  webhook-secret: ${STRIPE_WEBHOOK_SECRET:whsec_YourWebhookSecretHere}
+  success-url: ${STRIPE_SUCCESS_URL:http://localhost:3000/payment/success}
+  cancel-url: ${STRIPE_CANCEL_URL:http://localhost:3000/customer/orders}
+
+# Feign Client Configuration
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 5000
+        readTimeout: 10000
+        loggerLevel: basic
+      order-service:
+        connectTimeout: 5000
+        readTimeout: 10000
+
+# Eureka Client Configuration
 eureka:
   client:
+    # Enable Eureka client
+    enabled: true
+    # Register with Eureka
+    register-with-eureka: true
+    # Fetch registry from Eureka
+    fetch-registry: true
+    # Eureka server URL - supports both local and Docker
+    # In Docker: use service name (eureka-server)
+    # Locally: use localhost
     service-url:
       defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+    # Health check configuration
+    healthcheck:
+      enabled: true
+    # Initial registration retry (seconds)
+    initial-instance-info-replication-interval-seconds: 5
+    # Registry fetch interval (seconds)
+    registry-fetch-interval-seconds: 10
+    # Retry configuration
+    eureka-service-url-poll-interval-seconds: 10
+    # Connection timeout
+    eureka-connection-idle-timeout-seconds: 30
   instance:
+    # Use IP address instead of hostname (CRITICAL for Docker)
     prefer-ip-address: true
+    # Hostname - auto-detected, can be overridden via environment variable
+    # In Docker: use container hostname or service name
+    # Locally: use localhost
+    hostname: ${EUREKA_INSTANCE_HOSTNAME:${HOSTNAME:localhost}}
+    # IP address - auto-detected by Spring Cloud
+    ip-address: ${EUREKA_INSTANCE_IP:}
+    # Lease renewal interval (seconds) - how often to send heartbeat
+    lease-renewal-interval-in-seconds: 10
+    # Lease expiration time (seconds) - how long before Eureka removes instance
+    lease-expiration-duration-in-seconds: 30
+    # Instance ID format - unique identifier for this instance
+    instance-id: ${spring.application.name}:${server.port}:${spring.application.instance-id:${random.value}}
+    # Status page URL (for Eureka dashboard)
+    status-page-url: http://${eureka.instance.hostname}:${server.port}/actuator/info
+    # Health check URL (for Eureka health monitoring)
+    health-check-url: http://${eureka.instance.hostname}:${server.port}/actuator/health
+    # Home page URL
+    home-page-url: http://${eureka.instance.hostname}:${server.port}/
+
+# Actuator Configuration (for Eureka health checks)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+  health:
+    liveness-state:
+      enabled: true
+    readiness-state:
+      enabled: true
 
 logging:
   level:
-    "[com.fooddelivery.payment]": DEBUG
+    "[com.fooddelivery.payment]": INFO
+    "[feign]": INFO
+    "[com.netflix.eureka]": INFO
+    "[com.netflix.discovery]": INFO
+    "[org.springframework.cloud.gateway]": DEBUG

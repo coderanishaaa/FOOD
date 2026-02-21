@@ -17,13 +17,14 @@ public class OrderEventConsumer {
 
     private final PaymentService paymentService;
 
-    @KafkaListener(topics = "order-events", groupId = "payment-service-group")
+    @KafkaListener(topics = "order-created-topic", groupId = "payment-service-group")
     public void consumeOrderEvent(OrderEvent event) {
         log.info("Received order event: orderId={}, status={}", event.getOrderId(), event.getStatus());
 
-        // Only process PLACED orders
-        if ("PLACED".equals(event.getStatus())) {
-            paymentService.processPayment(event);
+        // Create payment record with PENDING status when order is created
+        // Payment will be processed via Stripe checkout
+        if ("PENDING_PAYMENT".equals(event.getStatus())) {
+            paymentService.createPaymentRecord(event);
         }
     }
 }

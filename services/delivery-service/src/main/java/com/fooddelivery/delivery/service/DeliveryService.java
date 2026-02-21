@@ -61,8 +61,14 @@ public class DeliveryService {
     }
 
     public DeliveryDto getDeliveryByOrderId(Long orderId) {
-        Delivery delivery = deliveryRepository.findByOrderId(orderId)
-                .orElseThrow(() -> new RuntimeException("Delivery not found for order: " + orderId));
+        Delivery delivery = deliveryRepository.findByOrderId(orderId).orElse(null);
+        
+        if (delivery == null) {
+            // Return null instead of throwing exception - controller will handle it
+            log.info("Delivery not found for orderId={}", orderId);
+            return null;
+        }
+        
         return mapToDto(delivery);
     }
 

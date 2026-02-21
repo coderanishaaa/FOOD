@@ -20,7 +20,9 @@ Eureka Server (:8761) — Service Discovery
  (user_db)    (restaurant_db)  (order_db)      (payment_db)  (delivery_db) (notification_db)
 ```
 
-**Event Flow:** Order Placed → `order-events` → Payment Service → `payment-events` → Delivery Service → `delivery-events` → Notification Service (consumes all 3 topics)
+**Event Flow:** Order Placed → `order-created-topic` → Payment Service (creates payment record) → Customer pays via Stripe → Webhook → `payment-success-topic` → Delivery Service → `delivery-update-topic` → Notification Service (consumes all topics)
+
+**Payment Flow:** Order with `PENDING_PAYMENT` → Stripe Checkout Session → Customer pays → Stripe Webhook → Order updated to `PAID` → Delivery assigned automatically
 
 ## Prerequisites
 
@@ -30,6 +32,7 @@ Eureka Server (:8761) — Service Discovery
 - **MySQL 8.0** (local) or Docker
 - **Apache Kafka** (local) or Docker
 - **Docker & Docker Compose** (for containerized run)
+- **Stripe Account** (for payment integration) - See [STRIPE_SETUP.md](STRIPE_SETUP.md)
 
 ---
 
@@ -146,9 +149,11 @@ Import `postman/Food-Delivery-System.postman_collection.json` into Postman.
 1. Register a Restaurant Owner → Login
 2. Create a Restaurant → Add Menu Items
 3. Login as Customer
-4. Place an Order (triggers Kafka → Payment → Delivery → Notifications)
-5. Check Payment, Delivery, and Notification endpoints
-6. Login as Delivery Agent → Update delivery status
+4. Place an Order (status: `PENDING_PAYMENT`)
+5. Click "Proceed to Payment" → Complete Stripe Checkout
+6. Order status updates to `PAID` → Delivery assigned automatically
+7. Check Payment, Delivery, and Notification endpoints
+8. Login as Delivery Agent → Update delivery status
 
 ---
 
@@ -171,11 +176,24 @@ Import `postman/Food-Delivery-System.postman_collection.json` into Postman.
 
 ## Kafka Topics
 
-| Topic             | Producer         | Consumers                         |
-|-------------------|------------------|-----------------------------------|
-| order-events      | order-service    | payment-service, notification-service |
-| payment-events    | payment-service  | delivery-service, notification-service |
-| delivery-events   | delivery-service | notification-service              |
+| Topic                 | Producer         | Consumers                         |
+|-----------------------|------------------|-----------------------------------|
+| order-created-topic   | order-service    | payment-service, notification-service |
+| payment-success-topic | payment-service  | delivery-service, notification-service |
+| delivery-update-topic | delivery-service | notification-service              |
+| notification-topic    | all services     | notification-service              |
+
+## Stripe Payment Integration
+
+The system includes **production-ready Stripe payment integration**:
+
+- ✅ Stripe Checkout Session creation
+- ✅ Webhook handling with signature verification
+- ✅ Automatic order status updates
+- ✅ Payment button visibility fix
+- ✅ Complete payment flow: Order → Payment → Delivery
+
+**Setup Instructions:** See [STRIPE_SETUP.md](STRIPE_SETUP.md) for detailed configuration and testing guide.
 
 ## User Roles
 

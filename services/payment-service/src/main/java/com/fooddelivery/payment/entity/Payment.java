@@ -30,7 +30,11 @@ public class Payment {
     @Builder.Default
     private PaymentStatus status = PaymentStatus.PENDING;
 
-    private String transactionId;  // Simulated payment reference
+    private String transactionId;  // Stripe payment intent ID or transaction reference
+    
+    private String stripeSessionId;  // Stripe Checkout Session ID
+    
+    private String stripePaymentIntentId;  // Stripe Payment Intent ID
 
     @CreationTimestamp
     @Column(updatable = false)

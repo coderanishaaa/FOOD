@@ -169,6 +169,11 @@ services:
       MYSQL_PASSWORD: root
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       EUREKA_URL: http://eureka-server:8761/eureka/
+      STRIPE_MOCK_MODE: ${STRIPE_MOCK_MODE:-true}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-sk_test_51T3G4wAIZYp5}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-whsec_YourWebhookSecretHere}
+      STRIPE_SUCCESS_URL: ${STRIPE_SUCCESS_URL:-http://localhost:3000/payment/success}
+      STRIPE_CANCEL_URL: ${STRIPE_CANCEL_URL:-http://localhost:3000/customer/orders}
     depends_on:
       mysql:
         condition: service_healthy
