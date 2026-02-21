@@ -1,0 +1,52 @@
+# Environment variables (contain sensitive keys)
+.env
+frontend/.env
+*.env
+*.env.local
+
+# Build artifacts
+target/
+**/target/
+*.class
+*.jar
+*.war
+*.ear
+
+# IDE files
+.idea/
+.vscode/
+*.iml
+.classpath
+.factorypath
+.settings/
+.project
+
+# Node modules
+node_modules/
+frontend/node_modules/
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Vite build
+frontend/dist/
+frontend/.vite/
+
+# Temporary files
+*.tmp
+*.temp
+*~
+
+# Maven
+.mvn/
+mvnw
+mvnw.cmd
+
+# Spring Boot
+application-local.yml
+application-dev.yml
