@@ -43,8 +43,8 @@ stripe:
 razorpay:
   test-mode: ${RAZORPAY_TEST_MODE:true}
   key:
-    id: ${RAZORPAY_KEY_ID:}
-    secret: ${RAZORPAY_KEY_SECRET:}
+    id: ${RAZORPAY_KEY_ID:rzp_test_RT2cv0jcxdEeZN}
+    secret: ${RAZORPAY_KEY_SECRET:j8ptKxA4TU4m2n6RwnpJr5Sw}
 # Feign Client Configuration
 feign:
   client:
@@ -88,9 +88,9 @@ eureka:
     # Hostname - auto-detected, can be overridden via environment variable
     # In Docker: use container hostname or service name
     # Locally: use localhost
-    hostname: ${EUREKA_INSTANCE_HOSTNAME:${HOSTNAME:localhost}}
-    # IP address - auto-detected by Spring Cloud
-    ip-address: ${EUREKA_INSTANCE_IP:}
+    # hostname: ${EUREKA_INSTANCE_HOSTNAME:localhost}
+    # IP address - auto-detected by Spring Cloud (Do not set explicitly to empty string or it causes NPE)
+    # ip-address: ${EUREKA_INSTANCE_IP:}
     # Lease renewal interval (seconds) - how often to send heartbeat
     lease-renewal-interval-in-seconds: 10
     # Lease expiration time (seconds) - how long before Eureka removes instance
@@ -98,11 +98,11 @@ eureka:
     # Instance ID format - unique identifier for this instance
     instance-id: ${spring.application.name}:${server.port}:${spring.application.instance-id:${random.value}}
     # Status page URL (for Eureka dashboard)
-    status-page-url: http://${eureka.instance.hostname}:${server.port}/actuator/info
+    # status-page-url: http://${eureka.instance.hostname}:${server.port}/actuator/info
     # Health check URL (for Eureka health monitoring)
-    health-check-url: http://${eureka.instance.hostname}:${server.port}/actuator/health
+    # health-check-url: http://${eureka.instance.hostname}:${server.port}/actuator/health
     # Home page URL
-    home-page-url: http://${eureka.instance.hostname}:${server.port}/
+    # home-page-url: http://${eureka.instance.hostname}:${server.port}/
 
 # Actuator Configuration (for Eureka health checks)
 management:

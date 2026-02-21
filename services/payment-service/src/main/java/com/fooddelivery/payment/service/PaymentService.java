@@ -23,10 +23,12 @@ import java.util.UUID;
  * Payment processing service with Stripe integration.
  * 
  * Flow:
- * 1. Order created → OrderEvent published → Payment record created with PENDING status
+ * 1. Order created → OrderEvent published → Payment record created with PENDING
+ * status
  * 2. Customer clicks payment button → Stripe Checkout Session created
  * 3. Customer completes payment on Stripe → Webhook received
- * 4. Payment status updated to COMPLETED → Order status updated to PAID → PaymentEvent published
+ * 4. Payment status updated to COMPLETED → Order status updated to PAID →
+ * PaymentEvent published
  */
 @Service
 @RequiredArgsConstructor
@@ -37,7 +39,7 @@ public class PaymentService {
     private final KafkaTemplate<String, PaymentEvent> kafkaTemplate;
     private final OrderServiceClient orderServiceClient;
 
-    private static final String PAYMENT_EVENTS_TOPIC = "payment-success-topic";
+    private static final String PAYMENT_EVENTS_TOPIC = "payment-events";
 
     /**
      * Create or get payment record for an order event.
@@ -74,7 +76,8 @@ public class PaymentService {
      */
     @Transactional
     public PaymentDto handleSuccessfulPayment(String stripeSessionId, String stripePaymentIntentId) {
-        log.info("Handling successful payment: sessionId={}, paymentIntentId={}", stripeSessionId, stripePaymentIntentId);
+        log.info("Handling successful payment: sessionId={}, paymentIntentId={}", stripeSessionId,
+                stripePaymentIntentId);
 
         // Find payment by Stripe session ID
         Payment payment = paymentRepository.findByStripeSessionId(stripeSessionId)
@@ -90,9 +93,62 @@ public class PaymentService {
         // Update order status to PAID via order-service
         try {
             ApiResponse<OrderResponse> orderResponse = orderServiceClient.updateOrderStatus(
-                    payment.getOrderId(), 
-                    "PAID"
-            );
+                    payment.getOrderId(),
+                    "PAID");
+            log.info("Order status updated to PAID: orderId={}", payment.getOrderId());
+        } catch (Exception e) {
+            log.error("Failed to update order status for orderId={}: {}", payment.getOrderId(), e.getMessage());
+            // Continue even if order update fails - we can retry later
+        }
+
+        // Fetch order details for event
+        OrderResponse order = null;
+        try {
+            ApiResponse<OrderResponse> orderResponse = orderServiceClient.getOrderById(payment.getOrderId());
+            order = orderResponse != null ? orderResponse.getData() : null;
+        } catch (Exception e) {
+            log.error("Failed to fetch order details: {}", e.getMessage());
+        }
+
+        // Publish payment success event for delivery-service
+        PaymentEvent paymentEvent = PaymentEvent.builder()
+                .paymentId(payment.getId())
+                .orderId(payment.getOrderId())
+                .customerId(payment.getCustomerId())
+                .amount(payment.getAmount())
+                .status(payment.getStatus().name())
+                .deliveryAddress(order != null ? order.getDeliveryAddress() : null)
+                .timestamp(LocalDateTime.now())
+                .build();
+
+        kafkaTemplate.send(PAYMENT_EVENTS_TOPIC, String.valueOf(payment.getOrderId()), paymentEvent);
+        log.info("Published payment success event for orderId={}", payment.getOrderId());
+
+        return mapToDto(payment);
+    }
+
+    @Transactional
+    public PaymentDto handleSuccessfulPaymentByOrderId(Long orderId, String transactionId) {
+        log.info("Handling successful payment by orderId: {}, transactionId={}", orderId, transactionId);
+
+        // Find payment by order ID directly instead of using Razorpay Order ID as
+        // Stripe Session ID
+        Payment payment = paymentRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new RuntimeException("Payment not found for orderId: " + orderId));
+
+        // Update payment status
+        payment.setStatus(PaymentStatus.COMPLETED);
+        if (transactionId != null) {
+            payment.setTransactionId(transactionId);
+        }
+        payment = paymentRepository.save(payment);
+        log.info("Payment completed: paymentId={}, orderId={}", payment.getId(), payment.getOrderId());
+
+        // Update order status to PAID via order-service
+        try {
+            ApiResponse<OrderResponse> orderResponse = orderServiceClient.updateOrderStatus(
+                    payment.getOrderId(),
+                    "PAID");
             log.info("Order status updated to PAID: orderId={}", payment.getOrderId());
         } catch (Exception e) {
             log.error("Failed to update order status for orderId={}: {}", payment.getOrderId(), e.getMessage());
@@ -127,23 +183,25 @@ public class PaymentService {
 
     /**
      * Save Stripe session ID to payment record when checkout session is created.
-     * Creates payment record if it doesn't exist (for backward compatibility with PLACED orders).
+     * Creates payment record if it doesn't exist (for backward compatibility with
+     * PLACED orders).
      */
     @Transactional
     public void saveStripeSessionId(Long orderId, String stripeSessionId) {
         Payment payment = paymentRepository.findByOrderId(orderId).orElse(null);
-        
+
         if (payment == null) {
-            // Payment record doesn't exist - create it (for backward compatibility with PLACED orders)
+            // Payment record doesn't exist - create it (for backward compatibility with
+            // PLACED orders)
             log.info("Payment record not found for orderId={}, fetching order details to create one", orderId);
-            
+
             try {
                 // Fetch order details to get customerId and amount
                 ApiResponse<OrderResponse> orderResponse = orderServiceClient.getOrderById(orderId);
                 if (orderResponse == null || orderResponse.getData() == null) {
                     throw new RuntimeException("Order not found: " + orderId);
                 }
-                
+
                 OrderResponse order = orderResponse.getData();
                 payment = Payment.builder()
                         .orderId(orderId)
@@ -160,26 +218,27 @@ public class PaymentService {
         } else {
             payment.setStripeSessionId(stripeSessionId);
         }
-        
+
         payment = paymentRepository.save(payment);
         log.info("Stripe session ID saved: orderId={}, sessionId={}", orderId, stripeSessionId);
     }
 
     public PaymentDto getPaymentByOrderId(Long orderId) {
         Payment payment = paymentRepository.findByOrderId(orderId).orElse(null);
-        
+
         if (payment == null) {
-            // Return a default payment DTO with PENDING status instead of throwing exception
+            // Return a default payment DTO with PENDING status instead of throwing
+            // exception
             log.info("Payment not found for orderId={}, returning default PENDING status", orderId);
             return PaymentDto.builder()
                     .orderId(orderId)
                     .status("PENDING")
                     .build();
         }
-        
+
         return mapToDto(payment);
     }
-    
+
     /**
      * Get payment entity by order ID (for internal use).
      */

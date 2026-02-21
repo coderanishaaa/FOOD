@@ -66,8 +66,29 @@ export default function RestaurantDashboard() {
   const deleteMenuItem = async (id) => {
     try {
       await API.delete(`/api/menu-items/${id}`);
-      setMenuItems(menuItems.filter((m) => m.id !== id));
+      setMenuItems((prev) => prev.filter((m) => m.id !== id));
     } catch (err) { setError('Failed to delete item'); }
+  };
+
+  const updateOrderStatus = async (order, newStatus) => {
+    try {
+      await API.put(`/api/orders/${order.id}/status?status=${newStatus}`);
+      setMessage(`Order status updated to ${newStatus}`);
+
+      if (newStatus === 'CANCELLED_BY_RESTAURANT' && order.items) {
+        // Remove the ordered dishes from menu (set unavailable / delete)
+        for (const item of order.items) {
+          try {
+            await API.delete(`/api/menu-items/${item.menuItemId}`);
+          } catch (e) { }
+        }
+      }
+
+      // Refresh the current restaurant view
+      selectRestaurant(selectedRestaurant);
+    } catch (err) {
+      setError('Failed to update order status');
+    }
   };
 
   return (
@@ -167,6 +188,26 @@ export default function RestaurantDashboard() {
               </div>
               <p>Total: ${Number(order.totalAmount).toFixed(2)}</p>
               <p>Address: {order.deliveryAddress}</p>
+              {order.items && order.items.length > 0 && (
+                <div style={{ marginTop: 8 }}>
+                  <strong>Items:</strong>
+                  <ul style={{ paddingLeft: 20, margin: '4px 0', fontSize: '0.9rem' }}>
+                    {order.items.map((item, idx) => (
+                      <li key={idx}>{item.quantity}x {item.menuItemName}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {order.status === 'PENDING_RESTAURANT_CONFIRMATION' && (
+                <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
+                  <button className="btn btn-success btn-sm" onClick={() => updateOrderStatus(order, 'PENDING_PAYMENT')}>
+                    Accept
+                  </button>
+                  <button className="btn btn-danger btn-sm" onClick={() => updateOrderStatus(order, 'CANCELLED_BY_RESTAURANT')}>
+                    Reject
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </>

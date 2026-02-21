@@ -22,12 +22,12 @@ public class DeliveryController {
     public ResponseEntity<ApiResponse<DeliveryDto>> getDeliveryByOrderId(@PathVariable Long orderId) {
         try {
             DeliveryDto delivery = deliveryService.getDeliveryByOrderId(orderId);
-            
+
             if (delivery == null) {
                 // Delivery not assigned yet - return safe response
                 return ResponseEntity.ok(ApiResponse.success("Delivery not yet assigned", null));
             }
-            
+
             return ResponseEntity.ok(ApiResponse.success("Delivery retrieved", delivery));
         } catch (Exception e) {
             // Never throw 500 - return safe response
@@ -43,6 +43,26 @@ public class DeliveryController {
             @RequestHeader("X-User-Id") Long agentId) {
         List<DeliveryDto> deliveries = deliveryService.getDeliveriesByAgent(agentId);
         return ResponseEntity.ok(ApiResponse.success("Agent deliveries retrieved", deliveries));
+    }
+
+    /**
+     * Get all available (PENDING) deliveries.
+     */
+    @GetMapping("/available")
+    public ResponseEntity<ApiResponse<List<DeliveryDto>>> getAvailableDeliveries() {
+        List<DeliveryDto> deliveries = deliveryService.getPendingDeliveries();
+        return ResponseEntity.ok(ApiResponse.success("Available deliveries retrieved", deliveries));
+    }
+
+    /**
+     * Assign current agent to a delivery.
+     */
+    @PutMapping("/{id}/assign")
+    public ResponseEntity<ApiResponse<DeliveryDto>> assignDelivery(
+            @PathVariable Long id,
+            @RequestHeader("X-User-Id") Long agentId) {
+        DeliveryDto delivery = deliveryService.assignAgentToDelivery(id, agentId);
+        return ResponseEntity.ok(ApiResponse.success("Delivery assigned to agent", delivery));
     }
 
     /**

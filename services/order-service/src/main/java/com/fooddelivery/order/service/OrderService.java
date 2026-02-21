@@ -10,6 +10,8 @@ import com.fooddelivery.order.exception.ResourceNotFoundException;
 import com.fooddelivery.order.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.core.JdbcTemplate;
+import jakarta.annotation.PostConstruct;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,124 +25,137 @@ import java.util.stream.Collectors;
 @Slf4j
 public class OrderService {
 
-    private final OrderRepository orderRepository;
-    private final OrderEventProducer orderEventProducer;
+        private final OrderRepository orderRepository;
+        private final OrderEventProducer orderEventProducer;
+        private final JdbcTemplate jdbcTemplate;
 
-    /**
-     * Place a new order:
-     * 1. Calculate total from items
-     * 2. Save order to DB
-     * 3. Publish OrderEvent to Kafka for payment processing
-     */
-    @Transactional
-    public OrderResponse placeOrder(OrderRequest request, Long customerId) {
-        // Calculate total amount
-        BigDecimal totalAmount = request.getItems().stream()
-                .map(item -> item.getPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        @PostConstruct
+        public void init() {
+                try {
+                        jdbcTemplate.execute("ALTER TABLE orders MODIFY COLUMN status VARCHAR(255)");
+                        log.info("Successfully altered table orders modifying status column to VARCHAR(255)");
+                } catch (Exception e) {
+                        log.warn("Could not alter table orders status column: {}", e.getMessage());
+                }
+        }
 
-        // Build order entity
-        Order order = Order.builder()
-                .customerId(customerId)
-                .restaurantId(request.getRestaurantId())
-                .totalAmount(totalAmount)
-                .deliveryAddress(request.getDeliveryAddress())
-                .status(OrderStatus.PENDING_PAYMENT)  // Order starts with PENDING_PAYMENT status
-                .build();
+        /**
+         * Place a new order:
+         * 1. Calculate total from items
+         * 2. Save order to DB
+         * 3. Publish OrderEvent to Kafka for payment processing
+         */
+        @Transactional
+        public OrderResponse placeOrder(OrderRequest request, Long customerId) {
+                // Calculate total amount
+                BigDecimal totalAmount = request.getItems().stream()
+                                .map(item -> item.getPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        // Build order items
-        List<OrderItem> orderItems = request.getItems().stream()
-                .map(itemReq -> OrderItem.builder()
-                        .menuItemId(itemReq.getMenuItemId())
-                        .menuItemName(itemReq.getMenuItemName())
-                        .quantity(itemReq.getQuantity())
-                        .price(itemReq.getPrice())
-                        .order(order)
-                        .build())
-                .collect(Collectors.toList());
+                // Build order entity
+                Order order = Order.builder()
+                                .customerId(customerId)
+                                .restaurantId(request.getRestaurantId())
+                                .totalAmount(totalAmount)
+                                .deliveryAddress(request.getDeliveryAddress())
+                                .status(OrderStatus.PENDING_RESTAURANT_CONFIRMATION) // Order starts waiting for
+                                                                                     // restaurant
+                                .build();
 
-        order.setItems(orderItems);
-        Order savedOrder = orderRepository.save(order);
-        log.info("Order placed: orderId={}, customerId={}, total={}", savedOrder.getId(), customerId, totalAmount);
+                // Build order items
+                List<OrderItem> orderItems = request.getItems().stream()
+                                .map(itemReq -> OrderItem.builder()
+                                                .menuItemId(itemReq.getMenuItemId())
+                                                .menuItemName(itemReq.getMenuItemName())
+                                                .quantity(itemReq.getQuantity())
+                                                .price(itemReq.getPrice())
+                                                .order(order)
+                                                .build())
+                                .collect(Collectors.toList());
 
-        // Publish event to Kafka for payment-service to consume
-        OrderEvent event = OrderEvent.builder()
-                .orderId(savedOrder.getId())
-                .customerId(customerId)
-                .restaurantId(request.getRestaurantId())
-                .totalAmount(totalAmount)
-                .status(OrderStatus.PENDING_PAYMENT.name())  // Order is in PENDING_PAYMENT status
-                .deliveryAddress(request.getDeliveryAddress())
-                .timestamp(LocalDateTime.now())
-                .build();
-        orderEventProducer.publishOrderEvent(event);
+                order.setItems(orderItems);
+                Order savedOrder = orderRepository.save(order);
+                log.info("Order placed: orderId={}, customerId={}, total={}", savedOrder.getId(), customerId,
+                                totalAmount);
 
-        return mapToResponse(savedOrder);
-    }
+                // Publish event to Kafka for payment-service to consume
+                OrderEvent event = OrderEvent.builder()
+                                .orderId(savedOrder.getId())
+                                .customerId(customerId)
+                                .restaurantId(request.getRestaurantId())
+                                .totalAmount(totalAmount)
+                                .status(OrderStatus.PENDING_RESTAURANT_CONFIRMATION.name())
+                                .deliveryAddress(request.getDeliveryAddress())
+                                .timestamp(LocalDateTime.now())
+                                .build();
+                orderEventProducer.publishOrderEvent(event);
 
-    /**
-     * Get order by ID.
-     */
-    public OrderResponse getOrderById(Long orderId) {
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new ResourceNotFoundException("Order not found: " + orderId));
-        return mapToResponse(order);
-    }
+                return mapToResponse(savedOrder);
+        }
 
-    /**
-     * Get all orders for a customer.
-     */
-    public List<OrderResponse> getOrdersByCustomer(Long customerId) {
-        return orderRepository.findByCustomerIdOrderByCreatedAtDesc(customerId).stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
-    }
+        /**
+         * Get order by ID.
+         */
+        public OrderResponse getOrderById(Long orderId) {
+                Order order = orderRepository.findById(orderId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Order not found: " + orderId));
+                return mapToResponse(order);
+        }
 
-    /**
-     * Get all orders for a restaurant.
-     */
-    public List<OrderResponse> getOrdersByRestaurant(Long restaurantId) {
-        return orderRepository.findByRestaurantIdOrderByCreatedAtDesc(restaurantId).stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
-    }
+        /**
+         * Get all orders for a customer.
+         */
+        public List<OrderResponse> getOrdersByCustomer(Long customerId) {
+                return orderRepository.findByCustomerIdOrderByCreatedAtDesc(customerId).stream()
+                                .map(this::mapToResponse)
+                                .collect(Collectors.toList());
+        }
 
-    /**
-     * Update order status (called internally or by consuming Kafka events).
-     */
-    @Transactional
-    public OrderResponse updateOrderStatus(Long orderId, String status) {
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new ResourceNotFoundException("Order not found: " + orderId));
+        /**
+         * Get all orders for a restaurant.
+         */
+        public List<OrderResponse> getOrdersByRestaurant(Long restaurantId) {
+                return orderRepository.findByRestaurantIdOrderByCreatedAtDesc(restaurantId).stream()
+                                .map(this::mapToResponse)
+                                .collect(Collectors.toList());
+        }
 
-        order.setStatus(OrderStatus.valueOf(status));
-        order = orderRepository.save(order);
-        log.info("Order status updated: orderId={}, status={}", orderId, status);
+        /**
+         * Update order status (called internally or by consuming Kafka events).
+         */
+        @Transactional
+        public OrderResponse updateOrderStatus(Long orderId, String status) {
+                Order order = orderRepository.findById(orderId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Order not found: " + orderId));
 
-        return mapToResponse(order);
-    }
+                order.setStatus(OrderStatus.valueOf(status));
+                order = orderRepository.save(order);
+                log.info("Order status updated: orderId={}, status={}", orderId, status);
 
-    private OrderResponse mapToResponse(Order order) {
-        List<OrderItemResponse> items = order.getItems().stream()
-                .map(item -> OrderItemResponse.builder()
-                        .id(item.getId())
-                        .menuItemId(item.getMenuItemId())
-                        .menuItemName(item.getMenuItemName())
-                        .quantity(item.getQuantity())
-                        .price(item.getPrice())
-                        .build())
-                .collect(Collectors.toList());
+                return mapToResponse(order);
+        }
 
-        return OrderResponse.builder()
-                .id(order.getId())
-                .customerId(order.getCustomerId())
-                .restaurantId(order.getRestaurantId())
-                .status(order.getStatus().name())
-                .totalAmount(order.getTotalAmount())
-                .deliveryAddress(order.getDeliveryAddress())
-                .items(items)
-                .createdAt(order.getCreatedAt())
-                .updatedAt(order.getUpdatedAt())
-                .build();
-    }
+        private OrderResponse mapToResponse(Order order) {
+                List<OrderItemResponse> items = order.getItems().stream()
+                                .map(item -> OrderItemResponse.builder()
+                                                .id(item.getId())
+                                                .menuItemId(item.getMenuItemId())
+                                                .menuItemName(item.getMenuItemName())
+                                                .quantity(item.getQuantity())
+                                                .price(item.getPrice())
+                                                .build())
+                                .collect(Collectors.toList());
+
+                return OrderResponse.builder()
+                                .id(order.getId())
+                                .customerId(order.getCustomerId())
+                                .restaurantId(order.getRestaurantId())
+                                .status(order.getStatus().name())
+                                .totalAmount(order.getTotalAmount())
+                                .deliveryAddress(order.getDeliveryAddress())
+                                .items(items)
+                                .createdAt(order.getCreatedAt())
+                                .updatedAt(order.getUpdatedAt())
+                                .build();
+        }
 }

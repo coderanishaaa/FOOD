@@ -38,8 +38,8 @@ public class DeliveryService {
         Delivery delivery = Delivery.builder()
                 .orderId(paymentEvent.getOrderId())
                 .deliveryAddress(paymentEvent.getDeliveryAddress())
-                .deliveryAgentId(1L)  // Simulated auto-assignment
-                .status(DeliveryStatus.ASSIGNED)
+                .deliveryAgentId(null) // Wait for agent to accept
+                .status(DeliveryStatus.PENDING)
                 .build();
 
         delivery = deliveryRepository.save(delivery);
@@ -62,13 +62,13 @@ public class DeliveryService {
 
     public DeliveryDto getDeliveryByOrderId(Long orderId) {
         Delivery delivery = deliveryRepository.findByOrderId(orderId).orElse(null);
-        
+
         if (delivery == null) {
             // Return null instead of throwing exception - controller will handle it
             log.info("Delivery not found for orderId={}", orderId);
             return null;
         }
-        
+
         return mapToDto(delivery);
     }
 
@@ -76,6 +76,37 @@ public class DeliveryService {
         return deliveryRepository.findByDeliveryAgentId(agentId).stream()
                 .map(this::mapToDto)
                 .collect(Collectors.toList());
+    }
+
+    public List<DeliveryDto> getPendingDeliveries() {
+        return deliveryRepository.findByStatus(DeliveryStatus.PENDING).stream()
+                .map(this::mapToDto)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public DeliveryDto assignAgentToDelivery(Long deliveryId, Long agentId) {
+        Delivery delivery = deliveryRepository.findById(deliveryId)
+                .orElseThrow(() -> new RuntimeException("Delivery not found: " + deliveryId));
+        if (delivery.getStatus() != DeliveryStatus.PENDING) {
+            throw new RuntimeException("Delivery is already assigned or completed");
+        }
+        delivery.setDeliveryAgentId(agentId);
+        delivery.setStatus(DeliveryStatus.ASSIGNED);
+        delivery = deliveryRepository.save(delivery);
+
+        // Publish status update event
+        DeliveryEvent event = DeliveryEvent.builder()
+                .deliveryId(delivery.getId())
+                .orderId(delivery.getOrderId())
+                .deliveryAgentId(delivery.getDeliveryAgentId())
+                .status(delivery.getStatus().name())
+                .deliveryAddress(delivery.getDeliveryAddress())
+                .timestamp(LocalDateTime.now())
+                .build();
+        kafkaTemplate.send(DELIVERY_EVENTS_TOPIC, String.valueOf(delivery.getOrderId()), event);
+
+        return mapToDto(delivery);
     }
 
     /**

@@ -31,13 +31,13 @@ public class PaymentController {
     private final PaymentService paymentService;
     private final StripeService stripeService;
     private final RazorpayService razorpayService;
-    
+
     @Autowired(required = false)
-    private MockPaymentService mockPaymentService;  // Optional - only available in mock mode
+    private MockPaymentService mockPaymentService; // Optional - only available in mock mode
 
     @Value("${stripe.webhook-secret:}")
     private String webhookSecret;
-    
+
     @Value("${stripe.mock-mode:false}")
     private boolean mockMode;
 
@@ -76,10 +76,10 @@ public class PaymentController {
         try {
             log.info("=== Creating checkout session for orderId={} ===", orderId);
             log.info("Mock mode enabled: {}, MockPaymentService available: {}", mockMode, mockPaymentService != null);
-            
+
             CheckoutSessionResponse session = null;
             String errorMessage = null;
-            
+
             // Use mock mode if enabled, otherwise use real Stripe
             if (mockMode) {
                 log.info("MOCK MODE: Attempting to create mock checkout session for orderId={}", orderId);
@@ -107,8 +107,8 @@ public class PaymentController {
                 } catch (StripeException e) {
                     log.error("Stripe API error: {}", e.getMessage(), e);
                     errorMessage = "Stripe payment error: " + e.getMessage();
-                    if (e.getMessage() != null && (e.getMessage().contains("No API key") || 
-                        e.getMessage().contains("Invalid API Key"))) {
+                    if (e.getMessage() != null && (e.getMessage().contains("No API key") ||
+                            e.getMessage().contains("Invalid API Key"))) {
                         errorMessage = "Stripe API key not configured. Enable mock mode by setting STRIPE_MOCK_MODE=true or set STRIPE_SECRET_KEY environment variable.";
                     }
                 } catch (Exception e) {
@@ -120,15 +120,17 @@ public class PaymentController {
                     }
                 }
             }
-            
+
             // If session creation failed, return error
             if (session == null) {
                 log.error("❌ Failed to create checkout session. Error: {}", errorMessage);
                 return ResponseEntity.status(500)
-                        .body(ApiResponse.error(errorMessage != null ? errorMessage : "Failed to create checkout session"));
+                        .body(ApiResponse
+                                .error(errorMessage != null ? errorMessage : "Failed to create checkout session"));
             }
-            
-            // Save session ID to payment record (creates payment record if it doesn't exist)
+
+            // Save session ID to payment record (creates payment record if it doesn't
+            // exist)
             try {
                 paymentService.saveStripeSessionId(orderId, session.getSessionId());
                 log.info("✅ Session ID saved to payment record");
@@ -137,10 +139,10 @@ public class PaymentController {
                 // Don't fail the request - session is created, just log the error
                 log.warn("Checkout session created but failed to save session ID to payment record");
             }
-            
+
             log.info("✅✅✅ Checkout session created successfully for orderId={}, url={}", orderId, session.getUrl());
             return ResponseEntity.ok(ApiResponse.success("Checkout session created", session));
-            
+
         } catch (IllegalStateException e) {
             // Stripe config error
             log.error("Configuration error: {}", e.getMessage(), e);
@@ -149,13 +151,15 @@ public class PaymentController {
         } catch (Exception e) {
             log.error("❌❌❌ Unexpected error creating checkout session for orderId={}: {}", orderId, e.getMessage(), e);
             return ResponseEntity.status(500)
-                    .body(ApiResponse.error("Failed to create checkout session: " + e.getMessage() + ". Check logs for details."));
+                    .body(ApiResponse.error(
+                            "Failed to create checkout session: " + e.getMessage() + ". Check logs for details."));
         }
     }
 
     /**
      * Create Razorpay Order Session for an order.
-     * Returns orderId and keyId for embedding Razorpay Checkout form on your website.
+     * Returns orderId and keyId for embedding Razorpay Checkout form on your
+     * website.
      * 
      * @param orderId The order ID
      * @return RazorpayOrderResponse with order details
@@ -165,22 +169,24 @@ public class PaymentController {
             @PathVariable Long orderId) {
         try {
             log.info("=== Creating Razorpay order session for orderId={} ===", orderId);
-            
+
             RazorpayOrderResponse session = razorpayService.createRazorpayOrder(orderId);
-            
-            // Save Razorpay order ID to payment record (same field as stripe session ID or you can add a new one, here we reuse it or handle differently)
+
+            // Save Razorpay order ID to payment record (same field as stripe session ID or
+            // you can add a new one, here we reuse it or handle differently)
             try {
                 paymentService.saveStripeSessionId(orderId, session.getOrderId());
                 log.info("✅ Razorpay Order ID saved to payment record");
             } catch (Exception e) {
                 log.error("⚠️ Failed to save Razorpay Order ID: {}", e.getMessage(), e);
             }
-            
+
             log.info("✅ Razorpay order session created successfully for orderId={}", orderId);
             return ResponseEntity.ok(ApiResponse.success("Razorpay order session created", session));
-            
+
         } catch (Exception e) {
-            log.error("❌ Unexpected error creating Razorpay order session for orderId={}: {}", orderId, e.getMessage(), e);
+            log.error("❌ Unexpected error creating Razorpay order session for orderId={}: {}", orderId, e.getMessage(),
+                    e);
             return ResponseEntity.status(500)
                     .body(ApiResponse.error("Failed to create Razorpay order session: " + e.getMessage()));
         }
@@ -198,10 +204,10 @@ public class PaymentController {
             @PathVariable Long orderId) {
         try {
             log.info("=== Creating embedded checkout session for orderId={} ===", orderId);
-            
+
             CheckoutSessionResponse session = null;
             String errorMessage = null;
-            
+
             // Use mock mode if enabled, otherwise use real Stripe
             if (mockMode) {
                 log.info("MOCK MODE: Creating mock embedded checkout session for orderId={}", orderId);
@@ -227,8 +233,8 @@ public class PaymentController {
                 } catch (StripeException e) {
                     log.error("Stripe API error: {}", e.getMessage(), e);
                     errorMessage = "Stripe payment error: " + e.getMessage();
-                    if (e.getMessage() != null && (e.getMessage().contains("No API key") || 
-                        e.getMessage().contains("Invalid API Key"))) {
+                    if (e.getMessage() != null && (e.getMessage().contains("No API key") ||
+                            e.getMessage().contains("Invalid API Key"))) {
                         errorMessage = "Stripe API key not configured. Enable mock mode by setting STRIPE_MOCK_MODE=true or set STRIPE_SECRET_KEY environment variable.";
                     }
                 } catch (Exception e) {
@@ -236,14 +242,15 @@ public class PaymentController {
                     log.error(errorMessage, e);
                 }
             }
-            
+
             // If session creation failed, return error
             if (session == null) {
                 log.error("❌ Failed to create embedded checkout session. Error: {}", errorMessage);
                 return ResponseEntity.status(500)
-                        .body(ApiResponse.error(errorMessage != null ? errorMessage : "Failed to create embedded checkout session"));
+                        .body(ApiResponse.error(
+                                errorMessage != null ? errorMessage : "Failed to create embedded checkout session"));
             }
-            
+
             // Save session ID to payment record
             try {
                 paymentService.saveStripeSessionId(orderId, session.getSessionId());
@@ -251,16 +258,17 @@ public class PaymentController {
             } catch (Exception e) {
                 log.error("⚠️ Failed to save session ID: {}", e.getMessage(), e);
             }
-            
+
             log.info("✅ Embedded checkout session created successfully for orderId={}", orderId);
             return ResponseEntity.ok(ApiResponse.success("Embedded checkout session created", session));
-            
+
         } catch (IllegalStateException e) {
             log.error("Configuration error: {}", e.getMessage(), e);
             return ResponseEntity.status(500)
                     .body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            log.error("❌ Unexpected error creating embedded checkout session for orderId={}: {}", orderId, e.getMessage(), e);
+            log.error("❌ Unexpected error creating embedded checkout session for orderId={}: {}", orderId,
+                    e.getMessage(), e);
             return ResponseEntity.status(500)
                     .body(ApiResponse.error("Failed to create embedded checkout session: " + e.getMessage()));
         }
@@ -277,7 +285,7 @@ public class PaymentController {
     public ResponseEntity<String> handleStripeWebhook(
             @RequestBody String payload,
             @RequestHeader(value = "Stripe-Signature", required = false) String sigHeader) {
-        
+
         // Handle mock mode webhook (from frontend redirect)
         if (mockMode) {
             log.info("MOCK MODE: Processing mock payment webhook");
@@ -290,15 +298,15 @@ public class PaymentController {
                 return ResponseEntity.status(500).body("Error processing mock webhook");
             }
         }
-        
+
         // Real Stripe webhook handling
         log.info("Received Stripe webhook");
-        
+
         if (sigHeader == null || sigHeader.isEmpty()) {
             log.error("Missing Stripe-Signature header");
             return ResponseEntity.status(400).body("Missing Stripe-Signature header");
         }
-        
+
         Event event;
         try {
             // Verify webhook signature
@@ -314,14 +322,14 @@ public class PaymentController {
             Session session = (Session) event.getDataObjectDeserializer()
                     .getObject()
                     .orElseThrow(() -> new RuntimeException("Failed to deserialize session"));
-            
+
             log.info("Checkout session completed: sessionId={}", session.getId());
-            
+
             String paymentIntentId = null;
             if (session.getPaymentIntent() != null) {
                 paymentIntentId = session.getPaymentIntent().toString();
             }
-            
+
             try {
                 // Process successful payment
                 paymentService.handleSuccessfulPayment(session.getId(), paymentIntentId);
@@ -336,7 +344,7 @@ public class PaymentController {
 
         return ResponseEntity.ok("Webhook received");
     }
-    
+
     /**
      * Mock payment completion endpoint (for testing without Stripe).
      * Called when user returns from mock checkout.
@@ -347,37 +355,36 @@ public class PaymentController {
             return ResponseEntity.status(400)
                     .body(ApiResponse.error("Mock mode is not enabled"));
         }
-        
+
         try {
             log.info("MOCK MODE: Completing payment for orderId={}", orderId);
-            
+
             // Find payment by order ID
-            com.fooddelivery.payment.entity.Payment payment = 
-                paymentService.getPaymentEntityByOrderId(orderId);
-            
+            com.fooddelivery.payment.entity.Payment payment = paymentService.getPaymentEntityByOrderId(orderId);
+
             if (payment == null) {
                 return ResponseEntity.status(404)
                         .body(ApiResponse.error("Payment not found for order: " + orderId));
             }
-            
+
             // Process payment as if webhook was received
-            String mockSessionId = payment.getStripeSessionId() != null ? 
-                payment.getStripeSessionId() : "mock_session_" + orderId;
+            String mockSessionId = payment.getStripeSessionId() != null ? payment.getStripeSessionId()
+                    : "mock_session_" + orderId;
             String mockPaymentIntentId = "mock_pi_" + orderId;
-            
+
             // Complete the payment (method expects sessionId and paymentIntentId)
             paymentService.handleSuccessfulPayment(mockSessionId, mockPaymentIntentId);
-            
+
             log.info("MOCK MODE: Payment completed successfully for orderId={}", orderId);
             return ResponseEntity.ok(ApiResponse.success("Mock payment completed successfully", "Payment processed"));
-            
+
         } catch (Exception e) {
             log.error("Error completing mock payment: {}", e.getMessage(), e);
             return ResponseEntity.status(500)
                     .body(ApiResponse.error("Failed to complete mock payment: " + e.getMessage()));
         }
     }
-    
+
     /**
      * Get Stripe Checkout Session status.
      * Called by the frontend to check payment completion.
@@ -386,26 +393,26 @@ public class PaymentController {
     public ResponseEntity<ApiResponse<String>> getSessionStatus(@PathVariable String sessionId) {
         try {
             log.info("Checking session status for sessionId={}", sessionId);
-            
+
             if (mockMode) {
                 // Mock mode: always return complete for demo purposes
                 log.info("MOCK MODE: Returning mock session status");
                 return ResponseEntity.ok(ApiResponse.success("Session status retrieved", "complete"));
             }
-            
+
             // Real Stripe mode
             Session session = stripeService.getCheckoutSession(sessionId);
-            
+
             if (session == null) {
                 return ResponseEntity.status(404)
                         .body(ApiResponse.error("Session not found"));
             }
-            
+
             String status = session.getStatus();
             log.info("Session status: sessionId={}, status={}", sessionId, status);
-            
+
             return ResponseEntity.ok(ApiResponse.success("Session status retrieved", status));
-            
+
         } catch (Exception e) {
             log.error("Error getting session status: {}", e.getMessage(), e);
             return ResponseEntity.status(500)
@@ -420,32 +427,34 @@ public class PaymentController {
     @PostMapping("/razorpay-complete/{orderId}")
     public ResponseEntity<ApiResponse<String>> completeRazorpayPayment(
             @PathVariable Long orderId,
-            @RequestBody(required=false) java.util.Map<String, String> payload) {
+            @RequestBody(required = false) java.util.Map<String, String> payload) {
         try {
             log.info("Completing Razorpay payment for orderId={}", orderId);
-            
+
             String razorpayPaymentId = null;
             String razorpayOrderId = null;
-            
+
             if (payload != null) {
                 razorpayPaymentId = payload.get("razorpay_payment_id");
                 razorpayOrderId = payload.get("razorpay_order_id");
             }
-            
+
             if (razorpayPaymentId == null || razorpayOrderId == null) {
                 // Generate mock IDs if we are in mock mode
                 razorpayPaymentId = "pay_mock_" + orderId;
                 razorpayOrderId = "order_mock_" + orderId;
             }
-            
-            // For production, we must verify the Razorpay signature here using razorpaySignature and razorpayKeySecret
-            
-            // Complete the payment
-            paymentService.handleSuccessfulPayment(razorpayOrderId, razorpayPaymentId);
-            
+
+            // For production, we must verify the Razorpay signature here using
+            // razorpaySignature and razorpayKeySecret
+
+            // Complete the payment by order ID
+            paymentService.handleSuccessfulPaymentByOrderId(orderId, razorpayPaymentId);
+
             log.info("✅ Razorpay payment completed successfully for orderId={}", orderId);
-            return ResponseEntity.ok(ApiResponse.success("Razorpay payment completed successfully", "Payment processed"));
-            
+            return ResponseEntity
+                    .ok(ApiResponse.success("Razorpay payment completed successfully", "Payment processed"));
+
         } catch (Exception e) {
             log.error("❌ Error completing Razorpay payment for orderId={}: {}", orderId, e.getMessage(), e);
             return ResponseEntity.status(500)

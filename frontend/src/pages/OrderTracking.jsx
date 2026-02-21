@@ -133,31 +133,40 @@ export default function OrderTracking() {
     }
   };
 
+  const handleOrderReceived = async () => {
+    try {
+      await API.put(`/api/orders/${orderId}/status?status=DELIVERED`);
+      fetchTrackingData();
+    } catch (err) { setError('Failed to confirm receipt'); }
+  };
+
   // Map order status to timeline steps
   const getStepStatus = () => {
     if (!order) return { currentStep: 0, steps: [] };
 
-    const stepMap = {
-      PENDING_PAYMENT: 1,
-      PLACED: 1,  // Treat PLACED same as PENDING_PAYMENT for backward compatibility
-      PAID: 2,
-      ASSIGNED: 3,
-      OUT_FOR_DELIVERY: 4,
-      DELIVERED: 5,
-      CANCELLED: 0
-    };
-
-    const currentStep = stepMap[order.status] || 0;
+    let progress = 0;
+    switch (order.status) {
+      case 'PENDING_RESTAURANT_CONFIRMATION': progress = 1; break;
+      case 'PENDING_PAYMENT':
+      case 'PLACED': progress = 2; break;
+      case 'PAID': progress = 3; break;
+      case 'ASSIGNED': progress = 4; break;
+      case 'OUT_FOR_DELIVERY': progress = 5; break;
+      case 'DELIVERED': progress = 6; break;
+      case 'CANCELLED':
+      case 'CANCELLED_BY_RESTAURANT': progress = -1; break;
+      default: progress = 0; break;
+    }
 
     const steps = [
-      { label: 'Order Placed', done: currentStep >= 1, active: currentStep === 1 },
-      { label: 'Payment Done', done: currentStep >= 2, active: currentStep === 2 },
-      { label: 'Agent Assigned', done: currentStep >= 3, active: currentStep === 3 },
-      { label: 'Out for Delivery', done: currentStep >= 4, active: currentStep === 4 },
-      { label: 'Delivered', done: currentStep >= 5, active: currentStep === 5 },
+      { label: progress > 1 ? 'Order Confirmed' : 'Order Placed', done: progress > 1, active: progress === 1 },
+      { label: progress > 2 ? 'Payment Done' : 'Pending Payment', done: progress > 2, active: progress === 2 },
+      { label: progress > 3 ? 'Agent Assigned' : 'Awaiting Agent', done: progress > 3, active: progress === 3 },
+      { label: progress > 4 ? 'Out for Delivery' : 'Preparing Order', done: progress > 4, active: progress === 4 },
+      { label: progress > 5 ? 'Delivered' : 'On The Way', done: progress > 5, active: progress === 5 },
     ];
 
-    return { currentStep, steps };
+    return { currentStep: progress, steps };
   };
 
   const { steps } = getStepStatus();
@@ -218,9 +227,10 @@ export default function OrderTracking() {
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <h3>Order Details</h3>
-            <span className={`badge ${order.status === 'PENDING_PAYMENT' || order.status === 'PLACED' ? 'badge-pending' :
+            <span className={`badge ${['PENDING_RESTAURANT_CONFIRMATION', 'PENDING_PAYMENT', 'PLACED'].includes(order.status) ? 'badge-pending' :
               order.status === 'PAID' ? 'badge-confirmed' :
-                order.status === 'DELIVERED' ? 'badge-delivered' : 'badge-assigned'}`}>
+                order.status === 'DELIVERED' ? 'badge-delivered' :
+                  order.status.includes('CANCELLED') ? 'badge-error' : 'badge-assigned'}`}>
               {order.status}
             </span>
           </div>
@@ -232,6 +242,21 @@ export default function OrderTracking() {
               <span>${(item.price * item.quantity).toFixed(2)}</span>
             </div>
           ))}
+
+          {/* Restaurant Verification / Cancellation */}
+          {order.status === 'PENDING_RESTAURANT_CONFIRMATION' && (
+            <div style={{ marginTop: 16, padding: 16, background: '#fcf3cf', borderRadius: 8 }}>
+              <p style={{ margin: 0 }}><strong>⏳ Wait for a quick check from the restaurant...</strong></p>
+            </div>
+          )}
+
+          {order.status === 'CANCELLED_BY_RESTAURANT' && (
+            <div style={{ marginTop: 16, padding: 16, background: '#f5b7b1', borderRadius: 8 }}>
+              <h4 style={{ margin: '0 0 8px 0' }}>❌ Order Cancelled</h4>
+              <p>The dish is unavailable right now... please choose something else.</p>
+              <Link to="/customer/restaurants" className="btn btn-primary btn-sm" style={{ display: 'inline-block', marginTop: 10 }}>Browse Menu</Link>
+            </div>
+          )}
 
           {/* Payment Button - Show for both PENDING_PAYMENT and PLACED (backward compatibility) */}
           {(order.status === 'PENDING_PAYMENT' || order.status === 'PLACED') && (
@@ -305,7 +330,26 @@ export default function OrderTracking() {
         <div className="card">
           <h3>Delivery</h3>
           <p>Status: <strong>{delivery.status}</strong></p>
-          <p>Delivery Agent ID: {delivery.deliveryAgentId}</p>
+
+          {delivery.status === 'PENDING' ? (
+            <div style={{ marginTop: 16, padding: 16, background: '#e8f8f5', borderRadius: 8 }}>
+              <p style={{ margin: 0 }}><strong>⏳ Waiting for agent...</strong></p>
+            </div>
+          ) : (
+            <>
+              <p>Delivery Agent ID: {delivery.deliveryAgentId}</p>
+              <div style={{ marginTop: 16, padding: 16, background: '#d5f5e3', borderRadius: 8 }}>
+                <p style={{ margin: 0, color: '#145a32' }}><strong>🚗 Your delivery agent is on the way!</strong></p>
+              </div>
+
+              {/* Order Received Button */}
+              {order?.status !== 'DELIVERED' && (
+                <button className="btn btn-success" onClick={handleOrderReceived} style={{ marginTop: 16, width: '100%' }}>
+                  Confirm Order Received
+                </button>
+              )}
+            </>
+          )}
         </div>
       )}
     </div>
