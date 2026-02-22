@@ -58,8 +58,8 @@ spring:
         - id: payment-service-webhook
           uri: lb://payment-service
           predicates:
-            - Path=/api/payments/webhook
-          # No authentication filter - Stripe webhooks come from Stripe servers
+            - Path=/api/payments/razorpay-complete/**
+          # No authentication filter - Razorpay webhooks come from Razorpay servers
         
         # Payment routes - other endpoints require authentication
         - id: payment-service

@@ -58,52 +58,6 @@ public class PaymentService {
     }
 
     @Transactional
-    public PaymentDto handleSuccessfulPayment(String stripeSessionId, String stripePaymentIntentId) {
-        log.info("Handling successful payment: sessionId={}, paymentIntentId={}", stripeSessionId,
-                stripePaymentIntentId);
-
-        Payment payment = paymentRepository.findByStripeSessionId(stripeSessionId)
-                .orElseThrow(() -> new RuntimeException("Payment not found for Stripe session: " + stripeSessionId));
-
-        payment.setStatus(PaymentStatus.COMPLETED);
-        payment.setStripePaymentIntentId(stripePaymentIntentId);
-        payment.setTransactionId(stripePaymentIntentId);
-        payment = paymentRepository.save(payment);
-        log.info("Payment completed: paymentId={}, orderId={}", payment.getId(), payment.getOrderId());
-
-        try {
-            orderServiceClient.updateOrderStatus(
-                    payment.getOrderId(),
-                    "PAID");
-            log.info("Order status updated to PAID: orderId={}", payment.getOrderId());
-        } catch (Exception e) {
-            log.error("Failed to update order status for orderId={}: {}", payment.getOrderId(), e.getMessage());
-        }
-
-        OrderResponse order = null;
-        try {
-            ApiResponse<OrderResponse> orderResponse = orderServiceClient.getOrderById(payment.getOrderId());
-            order = orderResponse != null ? orderResponse.getData() : null;
-        } catch (Exception e) {
-            log.error("Failed to fetch order details: {}", e.getMessage());
-        }
-
-        PaymentEvent paymentEvent = new PaymentEvent();
-        paymentEvent.setPaymentId(payment.getId());
-        paymentEvent.setOrderId(payment.getOrderId());
-        paymentEvent.setCustomerId(payment.getCustomerId());
-        paymentEvent.setAmount(payment.getAmount());
-        paymentEvent.setStatus(payment.getStatus().name());
-        paymentEvent.setDeliveryAddress(order != null ? order.getDeliveryAddress() : null);
-        paymentEvent.setTimestamp(LocalDateTime.now());
-
-        kafkaTemplate.send(PAYMENT_EVENTS_TOPIC, String.valueOf(payment.getOrderId()), paymentEvent);
-        log.info("Published payment success event for orderId={}", payment.getOrderId());
-
-        return mapToDto(payment);
-    }
-
-    @Transactional
     public PaymentDto handleSuccessfulPaymentByOrderId(Long orderId, String transactionId) {
         log.info("Handling successful payment by orderId: {}, transactionId={}", orderId, transactionId);
 
@@ -150,7 +104,7 @@ public class PaymentService {
     }
 
     @Transactional
-    public void saveStripeSessionId(Long orderId, String stripeSessionId) {
+    public void savePaymentSessionId(Long orderId, String paymentSessionId) {
         Payment payment = paymentRepository.findByOrderId(orderId).orElse(null);
 
         if (payment == null) {
@@ -168,18 +122,18 @@ public class PaymentService {
                 payment.setCustomerId(order.getCustomerId());
                 payment.setAmount(order.getTotalAmount());
                 payment.setStatus(PaymentStatus.PENDING);
-                payment.setStripeSessionId(stripeSessionId);
+                payment.setPaymentSessionId(paymentSessionId);
                 log.info("Created payment record for orderId={}", orderId);
             } catch (Exception e) {
                 log.error("Failed to create payment record for orderId={}: {}", orderId, e.getMessage());
                 throw new RuntimeException("Failed to create payment record: " + e.getMessage(), e);
             }
         } else {
-            payment.setStripeSessionId(stripeSessionId);
+            payment.setPaymentSessionId(paymentSessionId);
         }
 
         payment = paymentRepository.save(payment);
-        log.info("Stripe session ID saved: orderId={}, sessionId={}", orderId, stripeSessionId);
+        log.info("Payment session ID saved: orderId={}, sessionId={}", orderId, paymentSessionId);
     }
 
     public PaymentDto getPaymentByOrderId(Long orderId) {

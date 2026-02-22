@@ -1,14 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import API from '../api/axios';
-import StripeCheckout from '../components/StripeCheckout';
 
 export default function CustomerOrders() {
   const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState({});
-  const [selectedOrderForPayment, setSelectedOrderForPayment] = useState(null);
 
   useEffect(() => {
     fetchOrders();
@@ -23,21 +21,77 @@ export default function CustomerOrders() {
     }
   };
 
-  const handlePayment = (orderId) => {
-    setSelectedOrderForPayment(orderId);
+  const handleRazorpayPayment = async (orderId) => {
+    setLoading((prev) => ({ ...prev, [orderId]: true }));
     setError('');
-  };
 
-  const handlePaymentComplete = () => {
-    setSelectedOrderForPayment(null);
-    // Refresh orders to see updated status
-    fetchOrders();
-    // Optionally navigate to success page
-    navigate('/payment/success', { replace: true });
-  };
+    // Load Razorpay Script
+    const loadScript = () => {
+      return new Promise((resolve) => {
+        const script = document.createElement('script');
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        script.onload = () => resolve(true);
+        script.onerror = () => resolve(false);
+        document.body.appendChild(script);
+      });
+    };
 
-  const handlePaymentCancel = () => {
-    setSelectedOrderForPayment(null);
+    const resScript = await loadScript();
+    if (!resScript) {
+      setError('Razorpay SDK failed to load.');
+      setLoading((prev) => ({ ...prev, [orderId]: false }));
+      return;
+    }
+
+    try {
+      const res = await API.post(`/api/payments/create-razorpay-session/${orderId}`);
+      const rzpOrder = res.data.data;
+
+      if (!rzpOrder || !rzpOrder.orderId) {
+        setError('Failed to create Razorpay Order');
+        setLoading((prev) => ({ ...prev, [orderId]: false }));
+        return;
+      }
+
+      const options = {
+        key: rzpOrder.keyId || 'rzp_test_mock_key_123',
+        amount: Math.round(rzpOrder.amount * 100),
+        currency: rzpOrder.currency || 'INR',
+        name: 'Food Delivery System',
+        description: `Order #${orderId}`,
+        order_id: rzpOrder.orderId,
+        handler: async function (response) {
+          try {
+            await API.post(`/api/payments/razorpay-complete/${orderId}`, {
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_signature: response.razorpay_signature
+            });
+            fetchOrders();
+          } catch (err) {
+            setError('Payment verification failed');
+          }
+        },
+        prefill: {
+          name: rzpOrder.customerName || 'Customer',
+          email: rzpOrder.customerEmail || 'customer@example.com',
+          contact: '9999999999'
+        },
+        theme: {
+          color: '#3399cc'
+        }
+      };
+
+      const rzp1 = new window.Razorpay(options);
+      rzp1.on('payment.failed', function (response) {
+        setError(`Payment failed: ${response.error.description}`);
+      });
+      rzp1.open();
+      setLoading((prev) => ({ ...prev, [orderId]: false }));
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to initiate Razorpay payment');
+      setLoading((prev) => ({ ...prev, [orderId]: false }));
+    }
   };
 
   const badgeClass = (status) => {
@@ -55,28 +109,6 @@ export default function CustomerOrders() {
     };
     return `badge ${map[status] || 'badge-pending'}`;
   };
-
-  // If showing checkout for a specific order, render the payment component
-  if (selectedOrderForPayment) {
-    return (
-      <div className="container">
-        <div className="dashboard-header">
-          <h2>Payment for Order #{selectedOrderForPayment}</h2>
-          <button 
-            className="btn btn-secondary btn-sm" 
-            onClick={handlePaymentCancel}
-          >
-            &larr; Back to Orders
-          </button>
-        </div>
-        <StripeCheckout 
-          orderId={selectedOrderForPayment}
-          onPaymentComplete={handlePaymentComplete}
-          onCancel={handlePaymentCancel}
-        />
-      </div>
-    );
-  }
 
   return (
     <div className="container">
@@ -115,14 +147,14 @@ export default function CustomerOrders() {
             <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
               {(order.status === 'PENDING_PAYMENT' || order.status === 'PLACED') && (
                 <button
-                  className="btn btn-success btn-sm"
-                  onClick={() => handlePayment(order.id)}
+                  className="btn btn-primary btn-sm"
+                  onClick={() => handleRazorpayPayment(order.id)}
                   disabled={loading[order.id]}
                 >
                   {loading[order.id] ? 'Processing...' : '💳 Pay Now'}
                 </button>
               )}
-              <Link to={`/track/${order.id}`} className="btn btn-primary btn-sm">
+              <Link to={`/track/${order.id}`} className="btn btn-secondary btn-sm">
                 Track Order
               </Link>
             </div>

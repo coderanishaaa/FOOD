@@ -31,15 +31,6 @@ spring:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
 
-# Stripe Configuration
-stripe:
-  # Set mock-mode=true to test without Stripe API key (DEFAULT: true for easy testing)
-  mock-mode: ${STRIPE_MOCK_MODE:true}
-  secret-key: ${STRIPE_SECRET_KEY:sk_test_51YourStripeSecretKeyHere}
-  public-key: ${STRIPE_PUBLIC_KEY:pk_test_51YourStripePublicKeyHere}
-  webhook-secret: ${STRIPE_WEBHOOK_SECRET:whsec_YourWebhookSecretHere}
-  success-url: ${STRIPE_SUCCESS_URL:http://localhost:3000/payment/success}
-  cancel-url: ${STRIPE_CANCEL_URL:http://localhost:3000/customer/orders}
 
 # Razorpay Configuration
 razorpay:

@@ -27,11 +27,9 @@ public class Payment {
     @Column(nullable = false)
     private PaymentStatus status = PaymentStatus.PENDING;
 
-    private String transactionId; // Stripe payment intent ID or transaction reference
+    private String transactionId; // Payment intent ID or transaction reference
 
-    private String stripeSessionId; // Stripe Checkout Session ID
-
-    private String stripePaymentIntentId; // Stripe Payment Intent ID
+    private String paymentSessionId; // Checkout Session ID
 
     @CreationTimestamp
     @Column(updatable = false)
@@ -88,20 +86,12 @@ public class Payment {
         this.transactionId = transactionId;
     }
 
-    public String getStripeSessionId() {
-        return stripeSessionId;
+    public String getPaymentSessionId() {
+        return paymentSessionId;
     }
 
-    public void setStripeSessionId(String stripeSessionId) {
-        this.stripeSessionId = stripeSessionId;
-    }
-
-    public String getStripePaymentIntentId() {
-        return stripePaymentIntentId;
-    }
-
-    public void setStripePaymentIntentId(String stripePaymentIntentId) {
-        this.stripePaymentIntentId = stripePaymentIntentId;
+    public void setPaymentSessionId(String paymentSessionId) {
+        this.paymentSessionId = paymentSessionId;
     }
 
     public LocalDateTime getCreatedAt() {

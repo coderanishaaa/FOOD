@@ -38,26 +38,7 @@ export default function OrderTracking() {
     } catch { /* delivery not yet assigned */ }
   };
 
-  const handlePayment = async () => {
-    if (!order) return;
-    setLoading(true);
-    setError('');
-    try {
-      const res = await API.post(`/api/payments/create-session/${orderId}`);
-      const checkoutUrl = res.data.data?.url;
 
-      if (checkoutUrl) {
-        // Redirect to Stripe Checkout
-        window.location.href = checkoutUrl;
-      } else {
-        setError('Failed to create payment session');
-        setLoading(false);
-      }
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to initiate payment');
-      setLoading(false);
-    }
-  };
 
   const handleRazorpayPayment = async () => {
     if (!order) return;
@@ -258,24 +239,15 @@ export default function OrderTracking() {
             </div>
           )}
 
-          {/* Payment Button - Show for both PENDING_PAYMENT and PLACED (backward compatibility) */}
-          {(order.status === 'PENDING_PAYMENT' || order.status === 'PLACED') && (
+          {order && (order.status === 'PENDING_PAYMENT' || order.status === 'PLACED') && (
             <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #eee' }}>
-              <button
-                className="btn btn-success"
-                onClick={handlePayment}
-                disabled={loading}
-                style={{ width: '100%', marginBottom: 8 }}
-              >
-                {loading ? 'Processing...' : '💳 Pay with Stripe'}
-              </button>
               <button
                 className="btn btn-primary"
                 onClick={handleRazorpayPayment}
                 disabled={loading}
                 style={{ width: '100%' }}
               >
-                {loading ? 'Processing...' : '⚡ Pay with Razorpay (Test Mode)'}
+                {loading ? 'Processing...' : '💳 Pay Now'}
               </button>
               {error && <div className="alert alert-error" style={{ marginTop: 8 }}>{error}</div>}
             </div>
@@ -306,20 +278,12 @@ export default function OrderTracking() {
           <h3>💳 Payment Required</h3>
           <p>Complete payment to proceed with your order.</p>
           <button
-            className="btn btn-success"
-            onClick={handlePayment}
-            disabled={loading}
-            style={{ marginTop: 8, marginRight: 8 }}
-          >
-            {loading ? 'Processing...' : 'Pay with Stripe'}
-          </button>
-          <button
             className="btn btn-primary"
             onClick={handleRazorpayPayment}
             disabled={loading}
             style={{ marginTop: 8 }}
           >
-            {loading ? 'Processing...' : 'Pay with Razorpay (Test Mode)'}
+            {loading ? 'Processing...' : 'Pay Now'}
           </button>
           {error && <div className="alert alert-error" style={{ marginTop: 8 }}>{error}</div>}
         </div>

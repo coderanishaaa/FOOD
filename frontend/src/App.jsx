@@ -7,7 +7,6 @@ import Register from './pages/Register';
 import CustomerDashboard from './pages/CustomerDashboard';
 import CustomerOrders from './pages/CustomerOrders';
 import OrderTracking from './pages/OrderTracking';
-import PaymentSuccess from './pages/PaymentSuccess';
 import RestaurantDashboard from './pages/RestaurantDashboard';
 import DeliveryDashboard from './pages/DeliveryDashboard';
 import AdminDashboard from './pages/AdminDashboard';
@@ -50,11 +49,6 @@ export default function App() {
         <Route path="/track/:orderId" element={
           <ProtectedRoute roles={['CUSTOMER', 'ADMIN']}>
             <OrderTracking />
-          </ProtectedRoute>
-        } />
-        <Route path="/payment/success" element={
-          <ProtectedRoute roles={['CUSTOMER']}>
-            <PaymentSuccess />
           </ProtectedRoute>
         } />
 

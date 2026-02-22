@@ -14,7 +14,7 @@ services:
       - mysql-data:/var/lib/mysql
       - ./db-init:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot" ]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -48,7 +48,7 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
     healthcheck:
-      test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:9092", "--list"]
+      test: [ "CMD", "kafka-topics", "--bootstrap-server", "localhost:9092", "--list" ]
       interval: 15s
       timeout: 10s
       retries: 10
@@ -63,7 +63,7 @@ services:
     ports:
       - "8761:8761"
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8761/actuator/health"]
+      test: [ "CMD", "wget", "--spider", "-q", "http://localhost:8761/actuator/health" ]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -169,11 +169,6 @@ services:
       MYSQL_PASSWORD: root
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       EUREKA_URL: http://eureka-server:8761/eureka/
-      STRIPE_MOCK_MODE: ${STRIPE_MOCK_MODE:-true}
-      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-sk_test_51T3G4wAIZYp5}
-      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-whsec_YourWebhookSecretHere}
-      STRIPE_SUCCESS_URL: ${STRIPE_SUCCESS_URL:-http://localhost:3000/payment/success}
-      STRIPE_CANCEL_URL: ${STRIPE_CANCEL_URL:-http://localhost:3000/customer/orders}
       # Razorpay configuration space (fill these with actual keys)
       RAZORPAY_TEST_MODE: ${RAZORPAY_TEST_MODE:-true}
       RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}
@@ -250,6 +245,7 @@ services:
 
 volumes:
   mysql-data:
+
 
 networks:
   food-network:
