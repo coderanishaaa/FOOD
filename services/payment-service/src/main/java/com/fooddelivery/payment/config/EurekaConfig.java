@@ -1,21 +1,16 @@
 package com.fooddelivery.payment.config;
 
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.cloud.netflix.eureka.EurekaClientConfigBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-/**
- * Eureka client configuration.
- * Ensures proper registration and retry logic.
- */
 @Configuration
-@Slf4j
 public class EurekaConfig {
 
-    /**
-     * Configure Eureka client with retry logic.
-     */
+    private static final Logger log = LoggerFactory.getLogger(EurekaConfig.class);
+
     @Bean
     public EurekaClientConfigBean eurekaClientConfigBean() {
         EurekaClientConfigBean config = new EurekaClientConfigBean();

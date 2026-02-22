@@ -1,8 +1,8 @@
 package com.fooddelivery.delivery.event;
 
 import com.fooddelivery.delivery.service.DeliveryService;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
@@ -11,11 +11,15 @@ import org.springframework.stereotype.Component;
  * creates a delivery record and assigns a delivery agent.
  */
 @Component
-@RequiredArgsConstructor
-@Slf4j
 public class PaymentEventConsumer {
 
+    private static final Logger log = LoggerFactory.getLogger(PaymentEventConsumer.class);
+
     private final DeliveryService deliveryService;
+
+    public PaymentEventConsumer(DeliveryService deliveryService) {
+        this.deliveryService = deliveryService;
+    }
 
     @KafkaListener(topics = "payment-events", groupId = "delivery-service-group")
     public void consumePaymentEvent(PaymentEvent event) {

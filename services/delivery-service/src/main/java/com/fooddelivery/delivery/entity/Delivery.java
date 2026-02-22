@@ -1,7 +1,6 @@
 package com.fooddelivery.delivery.entity;
 
 import jakarta.persistence.*;
-import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -9,7 +8,6 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "deliveries")
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class Delivery {
 
     @Id
@@ -19,14 +17,13 @@ public class Delivery {
     @Column(nullable = false, unique = true)
     private Long orderId;
 
-    private Long deliveryAgentId;  // Assigned delivery agent userId
+    private Long deliveryAgentId; // Assigned delivery agent userId
 
     @Column(nullable = false)
     private String deliveryAddress;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    @Builder.Default
     private DeliveryStatus status = DeliveryStatus.PENDING;
 
     @CreationTimestamp
@@ -35,4 +32,63 @@ public class Delivery {
 
     @UpdateTimestamp
     private LocalDateTime updatedAt;
+
+    public Delivery() {
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public Long getOrderId() {
+        return orderId;
+    }
+
+    public void setOrderId(Long orderId) {
+        this.orderId = orderId;
+    }
+
+    public Long getDeliveryAgentId() {
+        return deliveryAgentId;
+    }
+
+    public void setDeliveryAgentId(Long deliveryAgentId) {
+        this.deliveryAgentId = deliveryAgentId;
+    }
+
+    public String getDeliveryAddress() {
+        return deliveryAddress;
+    }
+
+    public void setDeliveryAddress(String deliveryAddress) {
+        this.deliveryAddress = deliveryAddress;
+    }
+
+    public DeliveryStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(DeliveryStatus status) {
+        this.status = status;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
+    }
 }

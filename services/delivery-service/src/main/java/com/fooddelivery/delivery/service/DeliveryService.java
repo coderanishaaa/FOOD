@@ -6,8 +6,8 @@ import com.fooddelivery.delivery.entity.DeliveryStatus;
 import com.fooddelivery.delivery.event.DeliveryEvent;
 import com.fooddelivery.delivery.event.PaymentEvent;
 import com.fooddelivery.delivery.repository.DeliveryRepository;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,44 +17,42 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
-@Slf4j
 public class DeliveryService {
+
+    private static final Logger log = LoggerFactory.getLogger(DeliveryService.class);
 
     private final DeliveryRepository deliveryRepository;
     private final KafkaTemplate<String, DeliveryEvent> kafkaTemplate;
 
+    public DeliveryService(DeliveryRepository deliveryRepository, KafkaTemplate<String, DeliveryEvent> kafkaTemplate) {
+        this.deliveryRepository = deliveryRepository;
+        this.kafkaTemplate = kafkaTemplate;
+    }
+
     private static final String DELIVERY_EVENTS_TOPIC = "delivery-events";
 
-    /**
-     * Create delivery record when payment is completed.
-     * In production, this would query user-service for available delivery agents.
-     * For demo, we auto-assign agent ID = 1.
-     */
     @Transactional
     public DeliveryDto createDelivery(PaymentEvent paymentEvent) {
         log.info("Creating delivery for orderId={}", paymentEvent.getOrderId());
 
-        Delivery delivery = Delivery.builder()
-                .orderId(paymentEvent.getOrderId())
-                .deliveryAddress(paymentEvent.getDeliveryAddress())
-                .deliveryAgentId(null) // Wait for agent to accept
-                .status(DeliveryStatus.PENDING)
-                .build();
+        Delivery delivery = new Delivery();
+        delivery.setOrderId(paymentEvent.getOrderId());
+        delivery.setDeliveryAddress(paymentEvent.getDeliveryAddress());
+        delivery.setDeliveryAgentId(null);
+        delivery.setStatus(DeliveryStatus.PENDING);
 
         delivery = deliveryRepository.save(delivery);
         log.info("Delivery assigned: deliveryId={}, orderId={}, agentId={}",
                 delivery.getId(), delivery.getOrderId(), delivery.getDeliveryAgentId());
 
-        // Publish delivery event
-        DeliveryEvent event = DeliveryEvent.builder()
-                .deliveryId(delivery.getId())
-                .orderId(delivery.getOrderId())
-                .deliveryAgentId(delivery.getDeliveryAgentId())
-                .status(delivery.getStatus().name())
-                .deliveryAddress(delivery.getDeliveryAddress())
-                .timestamp(LocalDateTime.now())
-                .build();
+        DeliveryEvent event = new DeliveryEvent();
+        event.setDeliveryId(delivery.getId());
+        event.setOrderId(delivery.getOrderId());
+        event.setDeliveryAgentId(delivery.getDeliveryAgentId());
+        event.setStatus(delivery.getStatus().name());
+        event.setDeliveryAddress(delivery.getDeliveryAddress());
+        event.setTimestamp(LocalDateTime.now());
+
         kafkaTemplate.send(DELIVERY_EVENTS_TOPIC, String.valueOf(delivery.getOrderId()), event);
 
         return mapToDto(delivery);
@@ -64,7 +62,6 @@ public class DeliveryService {
         Delivery delivery = deliveryRepository.findByOrderId(orderId).orElse(null);
 
         if (delivery == null) {
-            // Return null instead of throwing exception - controller will handle it
             log.info("Delivery not found for orderId={}", orderId);
             return null;
         }
@@ -95,23 +92,19 @@ public class DeliveryService {
         delivery.setStatus(DeliveryStatus.ASSIGNED);
         delivery = deliveryRepository.save(delivery);
 
-        // Publish status update event
-        DeliveryEvent event = DeliveryEvent.builder()
-                .deliveryId(delivery.getId())
-                .orderId(delivery.getOrderId())
-                .deliveryAgentId(delivery.getDeliveryAgentId())
-                .status(delivery.getStatus().name())
-                .deliveryAddress(delivery.getDeliveryAddress())
-                .timestamp(LocalDateTime.now())
-                .build();
+        DeliveryEvent event = new DeliveryEvent();
+        event.setDeliveryId(delivery.getId());
+        event.setOrderId(delivery.getOrderId());
+        event.setDeliveryAgentId(delivery.getDeliveryAgentId());
+        event.setStatus(delivery.getStatus().name());
+        event.setDeliveryAddress(delivery.getDeliveryAddress());
+        event.setTimestamp(LocalDateTime.now());
+
         kafkaTemplate.send(DELIVERY_EVENTS_TOPIC, String.valueOf(delivery.getOrderId()), event);
 
         return mapToDto(delivery);
     }
 
-    /**
-     * Update delivery status (delivery agent updates).
-     */
     @Transactional
     public DeliveryDto updateDeliveryStatus(Long deliveryId, String status) {
         Delivery delivery = deliveryRepository.findById(deliveryId)
@@ -121,29 +114,28 @@ public class DeliveryService {
         delivery = deliveryRepository.save(delivery);
         log.info("Delivery status updated: deliveryId={}, status={}", deliveryId, status);
 
-        // Publish status update event
-        DeliveryEvent event = DeliveryEvent.builder()
-                .deliveryId(delivery.getId())
-                .orderId(delivery.getOrderId())
-                .deliveryAgentId(delivery.getDeliveryAgentId())
-                .status(delivery.getStatus().name())
-                .deliveryAddress(delivery.getDeliveryAddress())
-                .timestamp(LocalDateTime.now())
-                .build();
+        DeliveryEvent event = new DeliveryEvent();
+        event.setDeliveryId(delivery.getId());
+        event.setOrderId(delivery.getOrderId());
+        event.setDeliveryAgentId(delivery.getDeliveryAgentId());
+        event.setStatus(delivery.getStatus().name());
+        event.setDeliveryAddress(delivery.getDeliveryAddress());
+        event.setTimestamp(LocalDateTime.now());
+
         kafkaTemplate.send(DELIVERY_EVENTS_TOPIC, String.valueOf(delivery.getOrderId()), event);
 
         return mapToDto(delivery);
     }
 
     private DeliveryDto mapToDto(Delivery d) {
-        return DeliveryDto.builder()
-                .id(d.getId())
-                .orderId(d.getOrderId())
-                .deliveryAgentId(d.getDeliveryAgentId())
-                .deliveryAddress(d.getDeliveryAddress())
-                .status(d.getStatus().name())
-                .createdAt(d.getCreatedAt())
-                .updatedAt(d.getUpdatedAt())
-                .build();
+        DeliveryDto res = new DeliveryDto();
+        res.setId(d.getId());
+        res.setOrderId(d.getOrderId());
+        res.setDeliveryAgentId(d.getDeliveryAgentId());
+        res.setDeliveryAddress(d.getDeliveryAddress());
+        res.setStatus(d.getStatus().name());
+        res.setCreatedAt(d.getCreatedAt());
+        res.setUpdatedAt(d.getUpdatedAt());
+        return res;
     }
 }

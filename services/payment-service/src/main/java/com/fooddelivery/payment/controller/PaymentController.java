@@ -13,8 +13,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import com.stripe.model.Event;
 import com.stripe.model.checkout.Session;
 import com.stripe.net.Webhook;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -24,13 +24,20 @@ import org.springframework.web.bind.annotation.*;
  */
 @RestController
 @RequestMapping("/api/payments")
-@RequiredArgsConstructor
-@Slf4j
 public class PaymentController {
+
+    private static final Logger log = LoggerFactory.getLogger(PaymentController.class);
 
     private final PaymentService paymentService;
     private final StripeService stripeService;
     private final RazorpayService razorpayService;
+
+    public PaymentController(PaymentService paymentService, StripeService stripeService,
+            RazorpayService razorpayService) {
+        this.paymentService = paymentService;
+        this.stripeService = stripeService;
+        this.razorpayService = razorpayService;
+    }
 
     @Autowired(required = false)
     private MockPaymentService mockPaymentService; // Optional - only available in mock mode

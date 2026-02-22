@@ -7,8 +7,8 @@ import com.fooddelivery.payment.dto.RazorpayOrderResponse;
 import com.razorpay.Order;
 import com.razorpay.RazorpayClient;
 import com.razorpay.RazorpayException;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -16,11 +16,15 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 
 @Service
-@RequiredArgsConstructor
-@Slf4j
 public class RazorpayService {
 
+    private static final Logger log = LoggerFactory.getLogger(RazorpayService.class);
+
     private final OrderServiceClient orderServiceClient;
+
+    public RazorpayService(OrderServiceClient orderServiceClient) {
+        this.orderServiceClient = orderServiceClient;
+    }
 
     @Value("${razorpay.key.id:}")
     private String razorpayKeyId;
@@ -72,13 +76,13 @@ public class RazorpayService {
 
         log.info("Razorpay order created: id={}, internalOrderId={}", razorpayOrder.get("id"), internalOrderId);
 
-        return RazorpayOrderResponse.builder()
-                .orderId(razorpayOrder.get("id"))
-                .amount(order.getTotalAmount())
-                .currency("INR")
-                .keyId(razorpayKeyId)
-                .customerName("Customer " + order.getCustomerId())
-                .customerEmail("customer" + order.getCustomerId() + "@example.com")
-                .build();
+        RazorpayOrderResponse response = new RazorpayOrderResponse();
+        response.setOrderId(razorpayOrder.get("id"));
+        response.setAmount(order.getTotalAmount());
+        response.setCurrency("INR");
+        response.setKeyId(razorpayKeyId);
+        response.setCustomerName("Customer " + order.getCustomerId());
+        response.setCustomerEmail("customer" + order.getCustomerId() + "@example.com");
+        return response;
     }
 }
