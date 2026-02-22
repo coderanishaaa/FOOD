@@ -8,8 +8,8 @@ import com.fooddelivery.order.event.OrderEvent;
 import com.fooddelivery.order.event.OrderEventProducer;
 import com.fooddelivery.order.exception.ResourceNotFoundException;
 import com.fooddelivery.order.repository.OrderRepository;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import jakarta.annotation.PostConstruct;
 import org.springframework.stereotype.Service;
@@ -21,13 +21,20 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
-@Slf4j
 public class OrderService {
+
+        private static final Logger log = LoggerFactory.getLogger(OrderService.class);
 
         private final OrderRepository orderRepository;
         private final OrderEventProducer orderEventProducer;
         private final JdbcTemplate jdbcTemplate;
+
+        public OrderService(OrderRepository orderRepository, OrderEventProducer orderEventProducer,
+                        JdbcTemplate jdbcTemplate) {
+                this.orderRepository = orderRepository;
+                this.orderEventProducer = orderEventProducer;
+                this.jdbcTemplate = jdbcTemplate;
+        }
 
         @PostConstruct
         public void init() {
@@ -39,38 +46,29 @@ public class OrderService {
                 }
         }
 
-        /**
-         * Place a new order:
-         * 1. Calculate total from items
-         * 2. Save order to DB
-         * 3. Publish OrderEvent to Kafka for payment processing
-         */
         @Transactional
         public OrderResponse placeOrder(OrderRequest request, Long customerId) {
-                // Calculate total amount
                 BigDecimal totalAmount = request.getItems().stream()
                                 .map(item -> item.getPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
                                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-                // Build order entity
-                Order order = Order.builder()
-                                .customerId(customerId)
-                                .restaurantId(request.getRestaurantId())
-                                .totalAmount(totalAmount)
-                                .deliveryAddress(request.getDeliveryAddress())
-                                .status(OrderStatus.PENDING_RESTAURANT_CONFIRMATION) // Order starts waiting for
-                                                                                     // restaurant
-                                .build();
+                Order order = new Order();
+                order.setCustomerId(customerId);
+                order.setRestaurantId(request.getRestaurantId());
+                order.setTotalAmount(totalAmount);
+                order.setDeliveryAddress(request.getDeliveryAddress());
+                order.setStatus(OrderStatus.PENDING_RESTAURANT_CONFIRMATION);
 
-                // Build order items
                 List<OrderItem> orderItems = request.getItems().stream()
-                                .map(itemReq -> OrderItem.builder()
-                                                .menuItemId(itemReq.getMenuItemId())
-                                                .menuItemName(itemReq.getMenuItemName())
-                                                .quantity(itemReq.getQuantity())
-                                                .price(itemReq.getPrice())
-                                                .order(order)
-                                                .build())
+                                .map(itemReq -> {
+                                        OrderItem item = new OrderItem();
+                                        item.setMenuItemId(itemReq.getMenuItemId());
+                                        item.setMenuItemName(itemReq.getMenuItemName());
+                                        item.setQuantity(itemReq.getQuantity());
+                                        item.setPrice(itemReq.getPrice());
+                                        item.setOrder(order);
+                                        return item;
+                                })
                                 .collect(Collectors.toList());
 
                 order.setItems(orderItems);
@@ -78,51 +76,38 @@ public class OrderService {
                 log.info("Order placed: orderId={}, customerId={}, total={}", savedOrder.getId(), customerId,
                                 totalAmount);
 
-                // Publish event to Kafka for payment-service to consume
-                OrderEvent event = OrderEvent.builder()
-                                .orderId(savedOrder.getId())
-                                .customerId(customerId)
-                                .restaurantId(request.getRestaurantId())
-                                .totalAmount(totalAmount)
-                                .status(OrderStatus.PENDING_RESTAURANT_CONFIRMATION.name())
-                                .deliveryAddress(request.getDeliveryAddress())
-                                .timestamp(LocalDateTime.now())
-                                .build();
+                OrderEvent event = new OrderEvent();
+                event.setOrderId(savedOrder.getId());
+                event.setCustomerId(customerId);
+                event.setRestaurantId(request.getRestaurantId());
+                event.setTotalAmount(totalAmount);
+                event.setStatus(OrderStatus.PENDING_RESTAURANT_CONFIRMATION.name());
+                event.setDeliveryAddress(request.getDeliveryAddress());
+                event.setTimestamp(LocalDateTime.now());
+
                 orderEventProducer.publishOrderEvent(event);
 
                 return mapToResponse(savedOrder);
         }
 
-        /**
-         * Get order by ID.
-         */
         public OrderResponse getOrderById(Long orderId) {
                 Order order = orderRepository.findById(orderId)
                                 .orElseThrow(() -> new ResourceNotFoundException("Order not found: " + orderId));
                 return mapToResponse(order);
         }
 
-        /**
-         * Get all orders for a customer.
-         */
         public List<OrderResponse> getOrdersByCustomer(Long customerId) {
                 return orderRepository.findByCustomerIdOrderByCreatedAtDesc(customerId).stream()
                                 .map(this::mapToResponse)
                                 .collect(Collectors.toList());
         }
 
-        /**
-         * Get all orders for a restaurant.
-         */
         public List<OrderResponse> getOrdersByRestaurant(Long restaurantId) {
                 return orderRepository.findByRestaurantIdOrderByCreatedAtDesc(restaurantId).stream()
                                 .map(this::mapToResponse)
                                 .collect(Collectors.toList());
         }
 
-        /**
-         * Update order status (called internally or by consuming Kafka events).
-         */
         @Transactional
         public OrderResponse updateOrderStatus(Long orderId, String status) {
                 Order order = orderRepository.findById(orderId)
@@ -137,25 +122,27 @@ public class OrderService {
 
         private OrderResponse mapToResponse(Order order) {
                 List<OrderItemResponse> items = order.getItems().stream()
-                                .map(item -> OrderItemResponse.builder()
-                                                .id(item.getId())
-                                                .menuItemId(item.getMenuItemId())
-                                                .menuItemName(item.getMenuItemName())
-                                                .quantity(item.getQuantity())
-                                                .price(item.getPrice())
-                                                .build())
+                                .map(item -> {
+                                        OrderItemResponse res = new OrderItemResponse();
+                                        res.setId(item.getId());
+                                        res.setMenuItemId(item.getMenuItemId());
+                                        res.setMenuItemName(item.getMenuItemName());
+                                        res.setQuantity(item.getQuantity());
+                                        res.setPrice(item.getPrice());
+                                        return res;
+                                })
                                 .collect(Collectors.toList());
 
-                return OrderResponse.builder()
-                                .id(order.getId())
-                                .customerId(order.getCustomerId())
-                                .restaurantId(order.getRestaurantId())
-                                .status(order.getStatus().name())
-                                .totalAmount(order.getTotalAmount())
-                                .deliveryAddress(order.getDeliveryAddress())
-                                .items(items)
-                                .createdAt(order.getCreatedAt())
-                                .updatedAt(order.getUpdatedAt())
-                                .build();
+                OrderResponse res = new OrderResponse();
+                res.setId(order.getId());
+                res.setCustomerId(order.getCustomerId());
+                res.setRestaurantId(order.getRestaurantId());
+                res.setStatus(order.getStatus().name());
+                res.setTotalAmount(order.getTotalAmount());
+                res.setDeliveryAddress(order.getDeliveryAddress());
+                res.setItems(items);
+                res.setCreatedAt(order.getCreatedAt());
+                res.setUpdatedAt(order.getUpdatedAt());
+                return res;
         }
 }
