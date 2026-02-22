@@ -5,7 +5,6 @@ import com.fooddelivery.restaurant.dto.RestaurantDto;
 import com.fooddelivery.restaurant.dto.RestaurantRequest;
 import com.fooddelivery.restaurant.service.RestaurantService;
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -14,10 +13,13 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/restaurants")
-@RequiredArgsConstructor
 public class RestaurantController {
 
     private final RestaurantService restaurantService;
+
+    public RestaurantController(RestaurantService restaurantService) {
+        this.restaurantService = restaurantService;
+    }
 
     @PostMapping
     public ResponseEntity<ApiResponse<RestaurantDto>> createRestaurant(

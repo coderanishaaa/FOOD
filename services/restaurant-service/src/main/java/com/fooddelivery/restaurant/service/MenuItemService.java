@@ -8,8 +8,8 @@ import com.fooddelivery.restaurant.exception.AccessDeniedException;
 import com.fooddelivery.restaurant.exception.ResourceNotFoundException;
 import com.fooddelivery.restaurant.repository.MenuItemRepository;
 import com.fooddelivery.restaurant.repository.RestaurantRepository;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,53 +17,47 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
-@Slf4j
 public class MenuItemService {
+
+    private static final Logger log = LoggerFactory.getLogger(MenuItemService.class);
 
     private final MenuItemRepository menuItemRepository;
     private final RestaurantRepository restaurantRepository;
 
-    /**
-     * Add a menu item to a restaurant. Only the restaurant owner can add items.
-     */
+    public MenuItemService(MenuItemRepository menuItemRepository, RestaurantRepository restaurantRepository) {
+        this.menuItemRepository = menuItemRepository;
+        this.restaurantRepository = restaurantRepository;
+    }
+
     @Transactional
     public MenuItemDto addMenuItem(MenuItemRequest request, Long userId, String role) {
         Restaurant restaurant = restaurantRepository.findById(request.getRestaurantId())
                 .orElseThrow(() -> new ResourceNotFoundException("Restaurant not found"));
 
-        // Verify ownership
         if (!restaurant.getOwnerId().equals(userId) && !"ADMIN".equals(role)) {
             throw new AccessDeniedException("You are not authorized to add items to this restaurant");
         }
 
-        MenuItem item = MenuItem.builder()
-                .name(request.getName())
-                .description(request.getDescription())
-                .price(request.getPrice())
-                .category(request.getCategory())
-                .imageUrl(request.getImageUrl())
-                .available(true)
-                .restaurant(restaurant)
-                .build();
+        MenuItem item = new MenuItem();
+        item.setName(request.getName());
+        item.setDescription(request.getDescription());
+        item.setPrice(request.getPrice());
+        item.setCategory(request.getCategory());
+        item.setImageUrl(request.getImageUrl());
+        item.setAvailable(true);
+        item.setRestaurant(restaurant);
 
         item = menuItemRepository.save(item);
         log.info("Menu item added: {} to restaurant {}", item.getName(), restaurant.getName());
         return mapToDto(item);
     }
 
-    /**
-     * Get all available menu items for a restaurant.
-     */
     public List<MenuItemDto> getMenuItemsByRestaurant(Long restaurantId) {
         return menuItemRepository.findByRestaurantIdAndAvailableTrue(restaurantId).stream()
                 .map(this::mapToDto)
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Update a menu item.
-     */
     @Transactional
     public MenuItemDto updateMenuItem(Long itemId, MenuItemRequest request, Long userId, String role) {
         MenuItem item = menuItemRepository.findById(itemId)
@@ -83,9 +77,6 @@ public class MenuItemService {
         return mapToDto(item);
     }
 
-    /**
-     * Delete (set unavailable) a menu item.
-     */
     @Transactional
     public void deleteMenuItem(Long itemId, Long userId, String role) {
         MenuItem item = menuItemRepository.findById(itemId)
@@ -100,15 +91,15 @@ public class MenuItemService {
     }
 
     private MenuItemDto mapToDto(MenuItem item) {
-        return MenuItemDto.builder()
-                .id(item.getId())
-                .name(item.getName())
-                .description(item.getDescription())
-                .price(item.getPrice())
-                .category(item.getCategory())
-                .imageUrl(item.getImageUrl())
-                .available(item.isAvailable())
-                .restaurantId(item.getRestaurant().getId())
-                .build();
+        MenuItemDto dto = new MenuItemDto();
+        dto.setId(item.getId());
+        dto.setName(item.getName());
+        dto.setDescription(item.getDescription());
+        dto.setPrice(item.getPrice());
+        dto.setCategory(item.getCategory());
+        dto.setImageUrl(item.getImageUrl());
+        dto.setAvailable(item.isAvailable());
+        dto.setRestaurantId(item.getRestaurant().getId());
+        return dto;
     }
 }

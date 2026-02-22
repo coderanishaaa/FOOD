@@ -3,7 +3,6 @@ package com.fooddelivery.user.controller;
 import com.fooddelivery.user.dto.ApiResponse;
 import com.fooddelivery.user.dto.UserDto;
 import com.fooddelivery.user.service.UserService;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -11,14 +10,18 @@ import java.util.List;
 
 /**
  * Protected user management endpoints.
- * Gateway forwards X-User-Id, X-User-Email, X-User-Role headers after JWT validation.
+ * Gateway forwards X-User-Id, X-User-Email, X-User-Role headers after JWT
+ * validation.
  */
 @RestController
 @RequestMapping("/api/users")
-@RequiredArgsConstructor
 public class UserController {
 
     private final UserService userService;
+
+    public UserController(UserService userService) {
+        this.userService = userService;
+    }
 
     /**
      * Get current user's profile using the X-User-Id header from gateway.

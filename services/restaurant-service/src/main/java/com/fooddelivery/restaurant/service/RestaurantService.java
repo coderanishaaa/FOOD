@@ -5,8 +5,8 @@ import com.fooddelivery.restaurant.entity.Restaurant;
 import com.fooddelivery.restaurant.exception.AccessDeniedException;
 import com.fooddelivery.restaurant.exception.ResourceNotFoundException;
 import com.fooddelivery.restaurant.repository.RestaurantRepository;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,66 +15,54 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
-@Slf4j
 public class RestaurantService {
+
+    private static final Logger log = LoggerFactory.getLogger(RestaurantService.class);
 
     private final RestaurantRepository restaurantRepository;
 
-    /**
-     * Create a new restaurant. Only RESTAURANT_OWNER role can create.
-     */
+    public RestaurantService(RestaurantRepository restaurantRepository) {
+        this.restaurantRepository = restaurantRepository;
+    }
+
     @Transactional
     public RestaurantDto createRestaurant(RestaurantRequest request, Long ownerId, String role) {
         if (!"RESTAURANT_OWNER".equals(role) && !"ADMIN".equals(role)) {
             throw new AccessDeniedException("Only restaurant owners can create restaurants");
         }
 
-        Restaurant restaurant = Restaurant.builder()
-                .name(request.getName())
-                .address(request.getAddress())
-                .phone(request.getPhone())
-                .cuisine(request.getCuisine())
-                .ownerId(ownerId)
-                .imageUrl(request.getImageUrl())
-                .active(true)
-                .build();
+        Restaurant restaurant = new Restaurant();
+        restaurant.setName(request.getName());
+        restaurant.setAddress(request.getAddress());
+        restaurant.setPhone(request.getPhone());
+        restaurant.setCuisine(request.getCuisine());
+        restaurant.setOwnerId(ownerId);
+        restaurant.setImageUrl(request.getImageUrl());
+        restaurant.setActive(true);
 
         restaurant = restaurantRepository.save(restaurant);
         log.info("Restaurant created: {} by owner {}", restaurant.getName(), ownerId);
         return mapToDto(restaurant);
     }
 
-    /**
-     * Get all active restaurants (public view for customers).
-     */
     public List<RestaurantDto> getAllActiveRestaurants() {
         return restaurantRepository.findByActiveTrue().stream()
                 .map(this::mapToDto)
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Get restaurant by ID.
-     */
     public RestaurantDto getRestaurantById(Long id) {
         Restaurant restaurant = restaurantRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Restaurant not found with id: " + id));
         return mapToDto(restaurant);
     }
 
-    /**
-     * Get restaurants owned by a specific user.
-     */
     public List<RestaurantDto> getRestaurantsByOwner(Long ownerId) {
         return restaurantRepository.findByOwnerId(ownerId).stream()
                 .map(this::mapToDto)
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Update restaurant — only the owner can update.
-     */
     @Transactional
     public RestaurantDto updateRestaurant(Long id, RestaurantRequest request, Long userId, String role) {
         Restaurant restaurant = restaurantRepository.findById(id)
@@ -95,9 +83,6 @@ public class RestaurantService {
         return mapToDto(restaurant);
     }
 
-    /**
-     * Delete (deactivate) a restaurant.
-     */
     @Transactional
     public void deleteRestaurant(Long id, Long userId, String role) {
         Restaurant restaurant = restaurantRepository.findById(id)
@@ -113,17 +98,17 @@ public class RestaurantService {
     }
 
     private RestaurantDto mapToDto(Restaurant restaurant) {
-        return RestaurantDto.builder()
-                .id(restaurant.getId())
-                .name(restaurant.getName())
-                .address(restaurant.getAddress())
-                .phone(restaurant.getPhone())
-                .cuisine(restaurant.getCuisine())
-                .ownerId(restaurant.getOwnerId())
-                .active(restaurant.isActive())
-                .imageUrl(restaurant.getImageUrl())
-                .menuItems(Collections.emptyList())  // Loaded separately via MenuItemService
-                .createdAt(restaurant.getCreatedAt())
-                .build();
+        RestaurantDto dto = new RestaurantDto();
+        dto.setId(restaurant.getId());
+        dto.setName(restaurant.getName());
+        dto.setAddress(restaurant.getAddress());
+        dto.setPhone(restaurant.getPhone());
+        dto.setCuisine(restaurant.getCuisine());
+        dto.setOwnerId(restaurant.getOwnerId());
+        dto.setActive(restaurant.isActive());
+        dto.setImageUrl(restaurant.getImageUrl());
+        dto.setMenuItems(Collections.emptyList()); // Loaded separately via MenuItemService
+        dto.setCreatedAt(restaurant.getCreatedAt());
+        return dto;
     }
 }

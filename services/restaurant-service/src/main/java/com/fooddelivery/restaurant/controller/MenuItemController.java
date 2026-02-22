@@ -5,7 +5,6 @@ import com.fooddelivery.restaurant.dto.MenuItemDto;
 import com.fooddelivery.restaurant.dto.MenuItemRequest;
 import com.fooddelivery.restaurant.service.MenuItemService;
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -14,10 +13,13 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/menu-items")
-@RequiredArgsConstructor
 public class MenuItemController {
 
     private final MenuItemService menuItemService;
+
+    public MenuItemController(MenuItemService menuItemService) {
+        this.menuItemService = menuItemService;
+    }
 
     @PostMapping
     public ResponseEntity<ApiResponse<MenuItemDto>> addMenuItem(

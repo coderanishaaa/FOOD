@@ -2,21 +2,21 @@ package com.fooddelivery.notification.event;
 
 import com.fooddelivery.notification.entity.NotificationType;
 import com.fooddelivery.notification.service.NotificationService;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
-/**
- * Listens to "payment-events" topic.
- * Creates a notification when a payment is processed (COMPLETED or FAILED).
- */
 @Component
-@RequiredArgsConstructor
-@Slf4j
 public class PaymentEventConsumer {
 
+    private static final Logger log = LoggerFactory.getLogger(PaymentEventConsumer.class);
+
     private final NotificationService notificationService;
+
+    public PaymentEventConsumer(NotificationService notificationService) {
+        this.notificationService = notificationService;
+    }
 
     @KafkaListener(topics = "payment-events", groupId = "notification-service-group")
     public void consumePaymentEvent(PaymentEvent event) {
@@ -31,7 +31,6 @@ public class PaymentEventConsumer {
                 event.getOrderId(),
                 message,
                 event.getStatus(),
-                event.getCustomerId()
-        );
+                event.getCustomerId());
     }
 }

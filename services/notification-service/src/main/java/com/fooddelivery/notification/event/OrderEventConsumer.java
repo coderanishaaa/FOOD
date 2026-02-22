@@ -2,21 +2,21 @@ package com.fooddelivery.notification.event;
 
 import com.fooddelivery.notification.entity.NotificationType;
 import com.fooddelivery.notification.service.NotificationService;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
-/**
- * Listens to "order-events" topic.
- * Creates a notification whenever an order is placed or its status changes.
- */
 @Component
-@RequiredArgsConstructor
-@Slf4j
 public class OrderEventConsumer {
 
+    private static final Logger log = LoggerFactory.getLogger(OrderEventConsumer.class);
+
     private final NotificationService notificationService;
+
+    public OrderEventConsumer(NotificationService notificationService) {
+        this.notificationService = notificationService;
+    }
 
     @KafkaListener(topics = "order-events", groupId = "notification-service-group")
     public void consumeOrderEvent(OrderEvent event) {
@@ -31,7 +31,6 @@ public class OrderEventConsumer {
                 event.getOrderId(),
                 message,
                 event.getStatus(),
-                event.getCustomerId()
-        );
+                event.getCustomerId());
     }
 }

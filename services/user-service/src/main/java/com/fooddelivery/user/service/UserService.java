@@ -6,8 +6,8 @@ import com.fooddelivery.user.entity.User;
 import com.fooddelivery.user.exception.DuplicateResourceException;
 import com.fooddelivery.user.exception.ResourceNotFoundException;
 import com.fooddelivery.user.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,58 +16,51 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
-@Slf4j
 public class UserService {
+
+    private static final Logger log = LoggerFactory.getLogger(UserService.class);
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
 
-    /**
-     * Register a new user. Validates uniqueness of email/phone,
-     * encodes password, and returns JWT token.
-     */
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtService jwtService) {
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.jwtService = jwtService;
+    }
+
     @Transactional
     public AuthResponse register(RegisterRequest request) {
-        // Check for duplicate email
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new DuplicateResourceException("Email already registered: " + request.getEmail());
         }
 
-        // Check for duplicate phone
         if (userRepository.existsByPhone(request.getPhone())) {
             throw new DuplicateResourceException("Phone number already registered: " + request.getPhone());
         }
 
-        // Build and save user entity
-        User user = User.builder()
-                .name(request.getName())
-                .email(request.getEmail())
-                .password(passwordEncoder.encode(request.getPassword()))
-                .phone(request.getPhone())
-                .role(Role.valueOf(request.getRole().toUpperCase()))
-                .address(request.getAddress())
-                .build();
+        User user = new User();
+        user.setName(request.getName());
+        user.setEmail(request.getEmail());
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setPhone(request.getPhone());
+        user.setRole(Role.valueOf(request.getRole().toUpperCase()));
+        user.setAddress(request.getAddress());
 
         user = userRepository.save(user);
         log.info("User registered: {} with role {}", user.getEmail(), user.getRole());
 
-        // Generate JWT token
         String token = jwtService.generateToken(user);
 
-        return AuthResponse.builder()
-                .token(token)
-                .email(user.getEmail())
-                .name(user.getName())
-                .role(user.getRole().name())
-                .userId(user.getId())
-                .build();
+        return new AuthResponse(
+                token,
+                user.getEmail(),
+                user.getName(),
+                user.getRole().name(),
+                user.getId());
     }
 
-    /**
-     * Authenticate user with email and password, return JWT token.
-     */
     public AuthResponse login(LoginRequest request) {
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + request.getEmail()));
@@ -79,54 +72,40 @@ public class UserService {
         String token = jwtService.generateToken(user);
         log.info("User logged in: {}", user.getEmail());
 
-        return AuthResponse.builder()
-                .token(token)
-                .email(user.getEmail())
-                .name(user.getName())
-                .role(user.getRole().name())
-                .userId(user.getId())
-                .build();
+        return new AuthResponse(
+                token,
+                user.getEmail(),
+                user.getName(),
+                user.getRole().name(),
+                user.getId());
     }
 
-    /**
-     * Get user profile by ID.
-     */
     public UserDto getUserById(Long id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
         return mapToDto(user);
     }
 
-    /**
-     * Get all users (admin only).
-     */
     public List<UserDto> getAllUsers() {
         return userRepository.findAll().stream()
                 .map(this::mapToDto)
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Get users by role (e.g., all delivery agents).
-     */
     public List<UserDto> getUsersByRole(String role) {
         return userRepository.findByRole(Role.valueOf(role.toUpperCase())).stream()
                 .map(this::mapToDto)
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Manual mapper: User entity → UserDto.
-     */
     private UserDto mapToDto(User user) {
-        return UserDto.builder()
-                .id(user.getId())
-                .name(user.getName())
-                .email(user.getEmail())
-                .phone(user.getPhone())
-                .role(user.getRole().name())
-                .address(user.getAddress())
-                .createdAt(user.getCreatedAt())
-                .build();
+        return new UserDto(
+                user.getId(),
+                user.getName(),
+                user.getEmail(),
+                user.getPhone(),
+                user.getRole().name(),
+                user.getAddress(),
+                user.getCreatedAt());
     }
 }

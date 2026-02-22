@@ -12,7 +12,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Global exception handler — catches all exceptions and returns consistent API responses.
+ * Global exception handler — catches all exceptions and returns consistent API
+ * responses.
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -47,11 +48,7 @@ public class GlobalExceptionHandler {
             errors.put(fieldName, message);
         });
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.<Map<String, String>>builder()
-                        .success(false)
-                        .message("Validation failed")
-                        .data(errors)
-                        .build());
+                .body(new ApiResponse<>(false, "Validation failed", errors));
     }
 
     @ExceptionHandler(Exception.class)
