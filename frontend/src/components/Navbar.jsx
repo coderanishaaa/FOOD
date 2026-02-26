@@ -1,5 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import NotificationBell from './NotificationBell';
 
 export default function Navbar() {
   const { user, logout } = useAuth();
@@ -26,6 +27,7 @@ export default function Navbar() {
           <>
             <Link to={dashboardPath[user.role] || '/'}>Dashboard</Link>
             {user.role === 'CUSTOMER' && <Link to="/customer/orders">My Orders</Link>}
+            <NotificationBell />
             <span style={{ color: '#bbb' }}>Hi, {user.name}</span>
             <button onClick={handleLogout}>Logout</button>
           </>

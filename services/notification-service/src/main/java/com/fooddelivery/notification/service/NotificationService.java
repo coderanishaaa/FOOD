@@ -6,6 +6,7 @@ import com.fooddelivery.notification.entity.NotificationType;
 import com.fooddelivery.notification.repository.NotificationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,10 +19,11 @@ import java.util.stream.Collectors;
 public class NotificationService {
 
     private final NotificationRepository notificationRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
     /**
-     * Create and persist a notification record.
-     * In production this would also push to WebSocket, email, SMS, etc.
+     * Create and persist a notification record, then push it
+     * to the recipient via WebSocket STOMP topic.
      */
     @Transactional
     public NotificationDto createNotification(NotificationType type, Long orderId,
@@ -38,7 +40,16 @@ public class NotificationService {
         log.info("Notification saved: id={}, type={}, orderId={}, recipient={}",
                 notification.getId(), type, orderId, recipientId);
 
-        return mapToDto(notification);
+        NotificationDto dto = mapToDto(notification);
+
+        // Push real-time notification to the specific user via WebSocket
+        if (recipientId != null) {
+            String destination = "/topic/notifications/" + recipientId;
+            messagingTemplate.convertAndSend(destination, dto);
+            log.info("WebSocket notification sent to {}", destination);
+        }
+
+        return dto;
     }
 
     public List<NotificationDto> getAllNotifications() {
@@ -76,6 +87,15 @@ public class NotificationService {
         notification.setReadStatus(true);
         notification = notificationRepository.save(notification);
         return mapToDto(notification);
+    }
+
+    /**
+     * Delete all notifications for a specific user.
+     */
+    @Transactional
+    public void clearNotifications(Long recipientId) {
+        notificationRepository.deleteByRecipientId(recipientId);
+        log.info("Cleared all notifications for recipient {}", recipientId);
     }
 
     private NotificationDto mapToDto(Notification n) {

@@ -414,6 +414,16 @@
             ],
             "url": { "raw": "{{gateway_url}}/api/notifications/1/read" }
           }
+        },
+        {
+          "name": "Clear All Notifications for User",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{gateway_url}}/api/notifications/user/{{user_id}}/clear" }
+          }
         }
       ]
     }
